@@ -7,3 +7,4 @@ psycopg[binary]==3.3.6
 
 httpx
 authlib
+psycopg2-binary
