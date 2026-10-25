@@ -272,8 +272,9 @@ def get_transactions() -> pd.DataFrame:
     with engine.connect() as con:
         df = pd.read_sql_query(text("""SELECT id, date, kind, category, amount, payment_method, expense_type, origin
             FROM transactions ORDER BY date DESC, id DESC"""), con)
-    if not df.empty:
+    if "date" in df.columns:
         df["date"] = pd.to_datetime(df["date"], errors="coerce")
+    if not df.empty:
         df["amount"] = pd.to_numeric(df["amount"], errors="coerce").fillna(0.0)
     return df
 
