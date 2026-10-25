@@ -55,3 +55,6 @@ def render():
         st.write("Os totais mensais de receita e despesa preservam o resumo consolidado da aba MES. As aberturas por categoria, tipo de despesa e forma de pagamento vêm dos lançamentos da DFC. A planilha apresenta diferenças entre essas fontes em alguns meses; por isso o app mostra o aviso de conciliação sem ajustar valores automaticamente.")
     export = filtered[["month_label", "revenue", "expenses", "balance"]].rename(columns={"month_label":"Mês", "revenue":"Receitas", "expenses":"Despesas", "balance":"Saldo"})
     export_csv(export, "Exportar resumo CSV", f"resumo_financeiro_{year}.csv")
+
+
+render()

@@ -37,3 +37,6 @@ def render():
     st.dataframe(table, hide_index=True, use_container_width=True, column_config={"Receita":st.column_config.NumberColumn(format="R$ %.2f"), "Custo":st.column_config.NumberColumn(format="R$ %.2f"), "Lucro":st.column_config.NumberColumn(format="R$ %.2f")})
     export_csv(table, "Exportar produtos CSV", f"produtos_{year}.csv")
     st.caption("O lucro por produto é calculado como receita menos custo na própria linha. Margem e lucro líquido consolidado permanecem fora desta versão.")
+
+
+render()

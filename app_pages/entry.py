@@ -2,46 +2,4 @@ from datetime import date
 import streamlit as st
 
 import db
-from auth import require_editor
-
-
-def render():
-    require_editor()
-    st.title("Cadastro de movimentaÃ§Ãµes")
-    st.caption("Os lanÃ§amentos salvos aparecem imediatamente nos indicadores do protÃ³tipo.")
-    tab_fin, tab_prod = st.tabs(["MovimentaÃ§Ã£o financeira", "Venda de produto"])
-    with tab_fin:
-        with st.form("financial_entry", clear_on_submit=True):
-            a, b = st.columns(2)
-            when = a.date_input("Data", value=date.today())
-            kind = b.selectbox("Tipo", ["Receita", "Despesa"])
-            category = a.text_input("Categoria", placeholder="Ex.: Venda, aluguel, peÃ§as")
-            amount = b.number_input("Valor (R$)", min_value=0.01, step=10.0, format="%.2f")
-            method = a.selectbox("Forma de pagamento", ["NÃ£o informada", "Dinheiro", "Pix", "CartÃ£o de dÃ©bito", "CartÃ£o de crÃ©dito", "Boleto", "TransferÃªncia", "Outro"])
-            expense_type = b.selectbox("ClassificaÃ§Ã£o da despesa", ["NÃ£o se aplica", "Fixa", "VariÃ¡vel", "NÃ£o classificada"])
-            submitted = st.form_submit_button("Salvar movimentaÃ§Ã£o", type="primary", use_container_width=True)
-        if submitted:
-            if not category.strip():
-                st.error("Informe uma categoria para salvar.")
-            else:
-                db.add_transaction(when, kind, category, amount, None if method == "NÃ£o informada" else method,
-                                   None if expense_type == "NÃ£o se aplica" else expense_type)
-                st.success("MovimentaÃ§Ã£o salva.")
-                st.rerun()
-    with tab_prod:
-        with st.form("product_entry", clear_on_submit=True):
-            a, b = st.columns(2)
-            when = a.date_input("Data da venda", value=date.today(), key="product_date")
-            product = b.text_input("Produto")
-            quantity = a.number_input("Quantidade", min_value=0.01, step=1.0)
-            cost = b.number_input("Custo total (R$)", min_value=0.0, step=10.0)
-            revenue = a.number_input("Receita total (R$)", min_value=0.0, step=10.0)
-            submitted = st.form_submit_button("Salvar venda", type="primary", use_container_width=True)
-        if submitted:
-            if not product.strip():
-                st.error("Informe o nome do produto.")
-            else:
-                import calendar
-                db.add_product(when.year, when.month, calendar.month_name[when.month], product, quantity, cost, revenue)
-                st.success("Venda de produto salva.")
-                st.rerun()
+from auth ims½ü¶‰ËkºwµçB7BæW'&÷"‚$–æf÷&ÖRòæöÖRFò&öGWFòâ"¢VÇ6S ¢–×÷'B6ÆVæF ¢F"æFE÷&öGV7B‡v†Vâç–V"Âv†VâæÖöçF‚Â6ÆVæF"æÖöçF…öæÖU·v†VâæÖöçF…ÒÂ&öGV7BÂVçF—G’Â6÷7BÂ&WfVçVR¢7Bç7V66W72‚%fVæFFR&öGWFò6Çfâ"¢7Bç&W'Vâ‚ Ğ Ğ§&VæFW"‚Ğ 

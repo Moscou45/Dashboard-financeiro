@@ -128,3 +128,6 @@ def render():
                 st.session_state.pop("pending_import",None)
                 st.success(f"Importação concluída: {inserted} novos registros; {skipped} duplicados ignorados.")
                 st.rerun()
+
+
+render()
