@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 from datetime import date, datetime
 from io import BytesIO
 
@@ -36,9 +37,41 @@ def render():
     require_editor()
     st.title("Importar planilha")
     st.caption("Importe registros financeiros ou vendas de produtos de uma planilha Excel. A importação não altera o arquivo enviado.")
-    uploaded = st.file_uploader("Selecione um arquivo .xlsx ou .xlsm", type=["xlsx", "xlsm"])
+    uploaded = st.file_uploader("Selecione uma planilha (.xlsx/.xlsm) ou o histórico preparado (.json)", type=["xlsx", "xlsm", "json"])
     if uploaded is None:
         st.info("Escolha uma planilha para começar. Você poderá selecionar a aba, mapear as colunas e conferir uma prévia antes de importar.")
+        return
+    if uploaded.name.casefold().endswith(".json"):
+        try:
+            payload = json.loads(uploaded.getvalue().decode("utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            st.error("Não consegui ler o JSON. Selecione o arquivo de histórico preparado para este painel.")
+            return
+        if not isinstance(payload, dict):
+            st.error("O arquivo não tem o formato de histórico esperado.")
+            return
+        monthly = payload.get("monthly_summary", {})
+        transactions = payload.get("transactions", [])
+        products = payload.get("products", [])
+        if not isinstance(monthly, dict) or not isinstance(transactions, list) or not isinstance(products, list):
+            st.error("O arquivo não tem o formato de histórico esperado.")
+            return
+        is_local = db.engine.dialect.name == "sqlite"
+        st.subheader("Prévia do histórico")
+        st.write(f"Ano: {payload.get('year', 'não informado')} • {len(monthly)} resumos mensais • {len(transactions)} movimentações • {len(products)} linhas de produtos")
+        st.info("Ao confirmar, esse histórico será gravado no PostgreSQL conectado ao app. Para evitar duplicidade, a carga só é aceita quando as tabelas de histórico, movimentações e produtos estão vazias. Se já houver dados, nada será alterado.")
+        if is_local:
+            st.error("Conecte o app ao PostgreSQL na nuvem antes de carregar o histórico.")
+        if st.button("Importar histórico para o PostgreSQL", type="primary", disabled=is_local):
+            try:
+                result = db.import_historical_snapshot(payload)
+            except Exception:
+                st.error("A importação falhou e foi revertida. Confira os logs do app em Manage app.")
+            else:
+                if result is None:
+                    st.warning("O banco já contém dados. Nenhuma linha foi alterada; evite importar sobre lançamentos existentes.")
+                else:
+                    st.success(f"Histórico importado: {result['monthly_summary']} resumos mensais, {result['transactions']} movimentações e {result['products']} linhas de produtos.")
         return
     try:
         workbook = pd.ExcelFile(BytesIO(uploaded.getvalue()))

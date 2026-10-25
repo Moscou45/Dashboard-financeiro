@@ -157,133 +157,73 @@ def seed_initial_data() -> bool:
     return True
 
 
-def seed_remote_data() -> bool:
-    """Load the local normalized snapshot into the configured remote database once."""
-    if engine.dialect.name == "sqlite" or not SEED_PATH.exists():
-        return False
-    with engine.connect() as con:
-        if con.execute(text("SELECT 1 FROM monthly_summary LIMIT 1")).first():
-            return False
-    payload = json.loads(SEED_PATH.read_text(encoding="utf-8"))
+def import_historical_snapshot(payload: dict[str, Any]) -> dict[str, int] | None:
+    """Load a normalized Excel snapshot into an empty remote database atomically."""
+    if engine.dialect.name == "sqlite":
+        raise RuntimeError("A importa√ß√£o hist√≥rica s√≥ √© permitida no PostgreSQL remoto.")
+    if not isinstance(payload, dict):
+        raise ValueError("O arquivo n√£o cont√©m um objeto JSON v√°lido.")
+
+    year = int(payload.get("year", 0))
+    monthly_summary = payload.get("monthly_summary")
+    transactions = payload.get("transactions")
+    products = payload.get("products")
+    if year < 2000 or not isinstance(monthly_summary, dict) or len(monthly_summary) != 12:
+        raise ValueError("O hist√≥rico precisa conter o ano e os 12 resumos mensais.")
+    if not isinstance(transactions, list) or not isinstance(products, list):
+        raise ValueError("O arquivo precisa conter listas de movimenta√ß√µes e produtos.")
+
+    month_names = {
+        "JANEIRO": 1, "FEVEREIRO": 2, "MAR√áO": 3, "MARCO": 3,
+        "ABRIL": 4, "MAIO": 5, "JUNHO": 6, "JULHO": 7,
+        "AGOSTO": 8, "SETEMBRO": 9, "OUTUBRO": 10,
+        "NOVEMBRO": 11, "DEZEMBRO": 12,
+    }
+    inserted = {"monthly_summary": 0, "transactions": 0, "products": 0}
+
     with engine.begin() as con:
-        for month, values in payload.get("monthly_summary", {}).items():
-            con.execute(text("""INSERT INTO monthly_summary(year, month, revenue, expenses)
+        already_populated = any(
+            con.execute(text(f"SELECT 1 FROM {table} LIMIT 1")).first()
+            for table in ("monthly_summary", "transactions", "product_sales")
+        )
+        if already_populated:
+            return None
+
+        for month_text, values in monthly_summary.items():
+            month = int(month_text)
+            if month < 1 or month > 12:
+                raise ValueError("O resumo mensal cont√©m um m√™s inv√°lido.")
+            result = con.execute(text("""INSERT INTO monthly_summary(year, month, revenue, expenses)
                 VALUES (:year, :month, :revenue, :expenses) ON CONFLICT DO NOTHING"""),
-                {"year": payload.get("year", 2026), "month": int(month), "revenue": _amount(values["revenue"]), "expenses": _amount(values["expenses"])})
-        month_names = {"JANEIRO": 1, "FEVEREIRO": 2, "MAR√áO": 3, "MARCO": 3, "ABRIL": 4, "MAIO": 5, "JUNHO": 6, "JULHO": 7, "AGOSTO": 8, "SETEMBRO": 9, "OUTUBRO": 10, "NOVEMBRO": 11, "DEZEMBRO": 12}
-        for index, row in enumerate(payload.get("transactions", [])):
+                {"year": year, "month": month, "revenue": _amount(values["revenue"]),
+                 "expenses": _amount(values["expenses"])})
+            inserted["monthly_summary"] += max(result.rowcount, 0)
+
+        for index, row in enumerate(transactions):
+            if row.get("kind") not in ("Receita", "Despesa"):
+                raise ValueError(f"Tipo inv√°lido em um lan√ßamento do hist√≥rico (posi√ß√£o {index + 1}).")
             key = hashlib.sha256(f"seed-tx-{index}-{row}".encode("utf-8")).hexdigest()
             expense_type = row.get("expense_type")
-            if expense_type and str(expense_type).casefold().startswith("vari"): expense_type = "Vari√°vel"
-            elif expense_type and str(expense_type).casefold().startswith("fix"): expense_type = "Fixa"
-            con.execute(text("""INSERT INTO transactions
+            if expense_type and str(expense_type).casefold().startswith("vari"):
+                expense_type = "Vari√°vel"
+            elif expense_type and str(expense_type).casefold().startswith("fix"):
+                expense_type = "Fixa"
+            result = con.execute(text("""INSERT INTO transactions
                 (date, kind, category, amount, payment_method, expense_type, origin, dedupe_key)
                 VALUES (:date, :kind, :category, :amount, :payment_method, :expense_type, 'base_excel', :dedupe_key)
                 ON CONFLICT DO NOTHING"""),
-                {"date": row["date"], "kind": row["kind"], "category": row["category"], "amount": _amount(row["amount"]),
-                 "payment_method": row.get("payment_method"), "expense_type": expense_type, "dedupe_key": key})
-        for index, row in enumerate(payload.get("products", [])):
+                {"date": row["date"], "kind": row["kind"], "category": row["category"],
+                 "amount": _amount(row["amount"]), "payment_method": row.get("payment_method"),
+                 "expense_type": expense_type, "dedupe_key": key})
+            inserted["transactions"] += max(result.rowcount, 0)
+
+        for index, row in enumerate(products):
             label = str(row.get("month") or "Sem m√™s").strip()
             key = hashlib.sha256(f"seed-product-{index}-{row}".encode("utf-8")).hexdigest()
-            con.execute(text("""INSERT INTO product_sales
+            result = con.execute(text("""INSERT INTO product_sales
                 (year, month_num, month_label, product, quantity, cost, revenue, profit, origin, dedupe_key)
                 VALUES (:year, :month_num, :month_label, :product, :quantity, :cost, :revenue, :profit, 'base_excel', :dedupe_key)
                 ON CONFLICT DO NOTHING"""),
-                {"year": payload.get("year", 2026), "month_num": month_names.get(label.upper()), "month_label": label,
-                 "product": row["product"], "quantity": _quantity(row["quantity"]), "cost": _amount(row["cost"]), "revenue": _amount(row["revenue"]),
-                 "profit": _amount(row["profit"]), "dedupe_key": key})
-    return True
-
-
-def add_transaction(when: date, kind: str, category: str, amount: float,
-                    payment_method: str | None = None, expense_type: str | None = None,
-                    origin: str = "manual", dedupe_key: str | None = None) -> bool:
-    with engine.begin() as con:
-        result = con.execute(text("""INSERT INTO transactions
-            (date, kind, category, amount, payment_method, expense_type, origin, dedupe_key)
-            VALUES (:date, :kind, :category, :amount, :payment_method, :expense_type, :origin, :dedupe_key)
-            ON CONFLICT DO NOTHING"""),
-            {"date": when.isoformat(), "kind": kind, "category": category.strip() or kind, "amount": _amount(amount),
-             "payment_method": payment_method, "expense_type": expense_type, "origin": origin, "dedupe_key": dedupe_key})
-        return result.rowcount > 0
-
-
-def add_product(year: int, month_num: int | None, month_label: str, product: str,
-                quantity: float, cost: float, revenue: float, origin: str = "manual",
-                dedupe_key: str | None = None) -> None:
-    with engine.begin() as con:
-        con.execute(text("""INSERT INTO product_sales
-            (year, month_num, month_label, product, quantity, cost, revenue, profit, origin, dedupe_key)
-            VALUES (:year, :month_num, :month_label, :product, :quantity, :cost, :revenue, :profit, :origin, :dedupe_key)
-            ON CONFLICT DO NOTHING"""),
-            {"year": year, "month_num": month_num, "month_label": month_label, "product": product.strip(),
-             "quantity": _quantity(quantity), "cost": _amount(cost), "revenue": _amount(revenue),
-             "profit": _amount(Decimal(str(revenue))-Decimal(str(cost))), "origin": origin, "dedupe_key": dedupe_key})
-
-
-def get_transactions() -> pd.DataFrame:
-    with engine.connect() as con:
-        df = pd.read_sql_query(text("""SELECT id, date, kind, category, amount, payment_method, expense_type, origin
-            FROM transactions ORDER BY date DESC, id DESC"""), con)
-    if not df.empty:
-        df["date"] = pd.to_datetime(df["date"], errors="coerce")
-        df["amount"] = pd.to_numeric(df["amount"], errors="coerce").fillna(0.0)
-    return df
-
-
-def get_monthly_summary(year: int) -> pd.DataFrame:
-    months = pd.DataFrame({"month": list(range(1, 13))})
-    months["year"] = year
-    with engine.connect() as con:
-        base = pd.read_sql_query(text("SELECT month, revenue, expenses FROM monthly_summary WHERE year=:year"), con, params={"year": year})
-        changes = pd.read_sql_query(text("""SELECT CAST(substr(date, 6, 2) AS INTEGER) AS month,
-            SUM(CASE WHEN kind='Receita' THEN amount ELSE 0 END) AS added_revenue,
-            SUM(CASE WHEN kind='Despesa' THEN amount ELSE 0 END) AS added_expenses
-            FROM transactions WHERE CAST(substr(date,1,4) AS INTEGER)=:year AND origin!='base_excel'
-            GROUP BY CAST(substr(date, 6, 2) AS INTEGER)"""), con, params={"year": year})
-    months = months.merge(base, on="month", how="left").merge(changes, on="month", how="left")
-    for col in ("revenue", "expenses", "added_revenue", "added_expenses"):
-        months[col] = months[col].fillna(0.0)
-        months[col] = pd.to_numeric(months[col], errors="coerce").fillna(0.0)
-    months["revenue"] += months["added_revenue"]
-    months["expenses"] += months["added_expenses"]
-    months["balance"] = months["revenue"] - months["expenses"]
-    months["has_data"] = (months["revenue"].abs() + months["expenses"].abs()) > 0.009
-    return months.drop(columns=["added_revenue", "added_expenses"])
-
-
-def get_products(year: int) -> pd.DataFrame:
-    with engine.connect() as con:
-        df = pd.read_sql_query(text("""SELECT year, month_num, month_label, product, quantity, cost, revenue, profit, origin
-            FROM product_sales WHERE year=:year ORDER BY month_num, product"""), con, params={"year": year})
-    for col in ("quantity", "cost", "revenue", "profit"):
-        if col in df: df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0.0)
-    return df
-
-
-def import_financial_rows(rows: list[dict[str, Any]]) -> tuple[int, int]:
-    inserted = skipped = 0
-    with engine.begin() as con:
-        for row in rows:
-            result = con.execute(text("""INSERT INTO transactions
-                (date, kind, category, amount, payment_method, expense_type, origin, dedupe_key)
-                VALUES (:date, :kind, :category, :amount, :payment_method, :expense_type, 'imported', :dedupe_key)
-                ON CONFLICT DO NOTHING"""),
-                {**{k: row.get(k) for k in ("date", "kind", "category", "payment_method", "expense_type", "dedupe_key")}, "amount": _amount(row["amount"])})
-            inserted += max(result.rowcount, 0); skipped += 1 - max(result.rowcount, 0)
-    return inserted, skipped
-
-
-def import_product_rows(rows: list[dict[str, Any]]) -> tuple[int, int]:
-    inserted = skipped = 0
-    with engine.begin() as con:
-        for row in rows:
-            result = con.execute(text("""INSERT INTO product_sales
-                (year, month_num, month_label, product, quantity, cost, revenue, profit, origin, dedupe_key)
-                VALUES (:year, :month_num, :month_label, :product, :quantity, :cost, :revenue, :profit, 'imported', :dedupe_key)
-                ON CONFLICT DO NOTHING"""),
-                {"year": row["year"], "month_num": row.get("month_num"), "month_label": row["month_label"],
-                 "product": row["product"], "quantity": _quantity(row["quantity"]), "cost": _amount(row["cost"]), "revenue": _amount(row["revenue"]),
-                 "profit": _amount(Decimal(str(row["revenue"]))-Decimal(str(row["cost"]))), "dedupe_key": row["dedupe_key"]})
-            inserted += max(result.rowcount, 0); skipped += 1 - max(result.rowcount, 0)
-    return inserted, skipped
+                {"year": year, "month_num": month_names.get(label.upper()), "month_label": label,
+                 "product": row["product"], "quantity": _quantity(row["quantity"]),
+   ﬂœ-¢Gß≤⁄Óù∆≠y›ï}—Â¡î∞ÄÈΩ…•ù•∏∞ÄÈëïë’¡ï}≠ï‰§4(ÄÄÄÄÄÄÄÄÄÄÄÅ=8Å=91%PÅ<Å9=Q!%9ààà§∞4(ÄÄÄÄÄÄÄÄÄÄÄÅÏâëÖ—îàËÅ›°ï∏π•ÕΩôΩ…µÖ–†§∞Äâ≠•πêàËÅ≠•πê∞ÄâçÖ—ïùΩ…‰àËÅçÖ—ïùΩ…‰πÕ—…•¿†§ÅΩ»Å≠•πê∞ÄâÖµΩ’π–àËÅ}ÖµΩ’π–°ÖµΩ’π–§∞4(ÄÄÄÄÄÄÄÄÄÄÄÄÄâ¡ÖÂµïπ—}µï—°ΩêàËÅ¡ÖÂµïπ—}µï—°Ωê∞Äâï·¡ïπÕï}—Â¡îàËÅï·¡ïπÕï}—Â¡î∞ÄâΩ…•ù•∏àËÅΩ…•ù•∏∞Äâëïë’¡ï}≠ï‰àËÅëïë’¡ï}≠ïÂÙ§4(ÄÄÄÄÄÄÄÅ…ï—’…∏Å…ïÕ’±–π…Ω›çΩ’π–Ä¯Ä¿4(4(4)ëïòÅÖëë}¡…Ωë’ç–°ÂïÖ»ËÅ•π–∞ÅµΩπ—°}π’¥ËÅ•π–ÅÅ9Ωπî∞ÅµΩπ—°}±Öâï∞ËÅÕ—»∞Å¡…Ωë’ç–ËÅÕ—»∞4(ÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÅ≈’Öπ—•—‰ËÅô±ΩÖ–∞ÅçΩÕ–ËÅô±ΩÖ–∞Å…ïŸïπ’îËÅô±ΩÖ–∞ÅΩ…•ù•∏ËÅÕ—»ÄÙÄâµÖπ’Ö∞à∞4(ÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÅëïë’¡ï}≠ï‰ËÅÕ—»ÅÅ9ΩπîÄÙÅ9Ωπî§Ä¥¯Å9ΩπîË4(ÄÄÄÅ›•—†Åïπù•πîπâïù•∏†§ÅÖÃÅçΩ∏Ë4(ÄÄÄÄÄÄÄÅçΩ∏πï·ïç’—î°—ï·–†ààâ%9MIPÅ%9Q<Å¡…Ωë’ç—}ÕÖ±ïÃ4(ÄÄÄÄÄÄÄÄÄÄÄÄ°ÂïÖ»∞ÅµΩπ—°}π’¥∞ÅµΩπ—°}±Öâï∞∞Å¡…Ωë’ç–∞Å≈’Öπ—•—‰∞ÅçΩÕ–∞Å…ïŸïπ’î∞Å¡…Ωô•–∞ÅΩ…•ù•∏∞Åëïë’¡ï}≠ï‰§4(ÄÄÄÄÄÄÄÄÄÄÄÅY1ULÄ†ÈÂïÖ»∞ÄÈµΩπ—°}π’¥∞ÄÈµΩπ—°}±Öâï∞∞ÄÈ¡…Ωë’ç–∞ÄÈ≈’Öπ—•—‰∞ÄÈçΩÕ–∞ÄÈ…ïŸïπ’î∞ÄÈ¡…Ωô•–∞ÄÈΩ…•ù•∏∞ÄÈëïë’¡ï}≠ï‰§4(ÄÄÄÄÄÄÄÄÄÄÄÅ=8Å=91%PÅ<Å9=Q!%9ààà§∞4(ÄÄÄÄÄÄÄÄÄÄÄÅÏâÂïÖ»àËÅÂïÖ»∞ÄâµΩπ—°}π’¥àËÅµΩπ—°}π’¥∞ÄâµΩπ—°}±Öâï∞àËÅµΩπ—°}±Öâï∞∞Äâ¡…Ωë’ç–àËÅ¡…Ωë’ç–πÕ—…•¿†§∞4(ÄÄÄÄÄÄÄÄÄÄÄÄÄâ≈’Öπ—•—‰àËÅ}≈’Öπ—•—‰°≈’Öπ—•—‰§∞ÄâçΩÕ–àËÅ}ÖµΩ’π–°çΩÕ–§∞Äâ…ïŸïπ’îàËÅ}ÖµΩ’π–°…ïŸïπ’î§∞4(ÄÄÄÄÄÄÄÄÄÄÄÄÄâ¡…Ωô•–àËÅ}ÖµΩ’π–°ïç•µÖ∞°Õ—»°…ïŸïπ’î§§µïç•µÖ∞°Õ—»°çΩÕ–§§§∞ÄâΩ…•ù•∏àËÅΩ…•ù•∏∞Äâëïë’¡ï}≠ï‰àËÅëïë’¡ï}≠ïÂÙ§4(4(4)ëïòÅùï—}—…ÖπÕÖç—•ΩπÃ†§Ä¥¯Å¡êπÖ—Ö…ÖµîË4(ÄÄÄÅ›•—†Åïπù•πîπçΩππïç–†§ÅÖÃÅçΩ∏Ë4(ÄÄÄÄÄÄÄÅëòÄÙÅ¡êπ…ïÖë}Õ≈±}≈’ï…‰°—ï·–†ààâM1PÅ•ê∞ÅëÖ—î∞Å≠•πê∞ÅçÖ—ïùΩ…‰∞ÅÖµΩ’π–∞Å¡ÖÂµïπ—}µï—°Ωê∞Åï·¡ïπÕï}—Â¡î∞ÅΩ…•ù•∏4(ÄÄÄÄÄÄÄÄÄÄÄÅI=4Å—…ÖπÕÖç—•ΩπÃÅ=IHÅ	dÅëÖ—îÅM∞Å•êÅMààà§∞ÅçΩ∏§4(ÄÄÄÅ•òÅπΩ–Åëòπïµ¡—‰Ë4(ÄÄÄÄÄÄÄÅëôlâëÖ—îâtÄÙÅ¡êπ—Ω}ëÖ—ï—•µî°ëôlâëÖ—îât∞Åï……Ω…ÃÙâçΩï…çîà§4(ÄÄÄÄÄÄÄÅëôlâÖµΩ’π–âtÄÙÅ¡êπ—Ω}π’µï…•å°ëôlâÖµΩ’π–ât∞Åï……Ω…ÃÙâçΩï…çîà§πô•±±πÑ†¿∏¿§4(ÄÄÄÅ…ï—’…∏Åëò4(4(4)ëïòÅùï—}µΩπ—°±Â}Õ’µµÖ…‰°ÂïÖ»ËÅ•π–§Ä¥¯Å¡êπÖ—Ö…ÖµîË4(ÄÄÄÅµΩπ—°ÃÄÙÅ¡êπÖ—Ö…Öµî°ÏâµΩπ—†àËÅ±•Õ–°…Öπùî†ƒ∞ÄƒÃ§•Ù§4(ÄÄÄÅµΩπ—°ÕlâÂïÖ»âtÄÙÅÂïÖ»4(ÄÄÄÅ›•—†Åïπù•πîπçΩππïç–†§ÅÖÃÅçΩ∏Ë4(ÄÄÄÄÄÄÄÅâÖÕîÄÙÅ¡êπ…ïÖë}Õ≈±}≈’ï…‰°—ï·–†âM1PÅµΩπ—†∞Å…ïŸïπ’î∞Åï·¡ïπÕïÃÅI=4ÅµΩπ—°±Â}Õ’µµÖ…‰Å]!IÅÂïÖ»ÙÈÂïÖ»à§∞ÅçΩ∏∞Å¡Ö…ÖµÃıÏâÂïÖ»àËÅÂïÖ…Ù§4(ÄÄÄÄÄÄÄÅç°ÖπùïÃÄÙÅ¡êπ…ïÖë}Õ≈±}≈’ï…‰°—ï·–†ààâM1PÅMP°Õ’âÕ—»°ëÖ—î∞Äÿ∞Ä»§ÅLÅ%9QH§ÅLÅµΩπ—†∞4(ÄÄÄÄÄÄÄÄÄÄÄÅMU4°MÅ]!8Å≠•πêÙùIïçï•—ÑúÅQ!8ÅÖµΩ’π–Å1MÄ¿Å9§ÅLÅÖëëïë}…ïŸïπ’î∞4(ÄÄÄÄÄÄÄÄÄÄÄÅMU4°MÅ]!8Å≠•πêÙùïÕ¡ïÕÑúÅQ!8ÅÖµΩ’π–Å1MÄ¿Å9§ÅLÅÖëëïë}ï·¡ïπÕïÃ4(ÄÄÄÄÄÄÄÄÄÄÄÅI=4Å—…ÖπÕÖç—•ΩπÃÅ]!IÅMP°Õ’âÕ—»°ëÖ—î∞ƒ∞–§ÅLÅ%9QH§ÙÈÂïÖ»Å9ÅΩ…•ù•∏ÑÙùâÖÕï}ï·çï∞ú4(ÄÄÄÄÄÄÄÄÄÄÄÅI=U@Å	dÅMP°Õ’âÕ—»°ëÖ—î∞Äÿ∞Ä»§ÅLÅ%9QH§ààà§∞ÅçΩ∏∞Å¡Ö…ÖµÃıÏâÂïÖ»àËÅÂïÖ…Ù§4(ÄÄÄÅµΩπ—°ÃÄÙÅµΩπ—°Ãπµï…ùî°âÖÕî∞ÅΩ∏ÙâµΩπ—†à∞Å°Ω‹Ùâ±ïô–à§πµï…ùî°ç°ÖπùïÃ∞ÅΩ∏ÙâµΩπ—†à∞Å°Ω‹Ùâ±ïô–à§4(ÄÄÄÅôΩ»ÅçΩ∞Å•∏Ä†â…ïŸïπ’îà∞Äâï·¡ïπÕïÃà∞ÄâÖëëïë}…ïŸïπ’îà∞ÄâÖëëïë}ï·¡ïπÕïÃà§Ë4(ÄÄÄÄÄÄÄÅµΩπ—°ÕmçΩ±tÄÙÅµΩπ—°ÕmçΩ±tπô•±±πÑ†¿∏¿§4(ÄÄÄÄÄÄÄÅµΩπ—°ÕmçΩ±tÄÙÅ¡êπ—Ω}π’µï…•å°µΩπ—°ÕmçΩ±t∞Åï……Ω…ÃÙâçΩï…çîà§πô•±±πÑ†¿∏¿§4(ÄÄÄÅµΩπ—°Õlâ…ïŸïπ’îâtÄ¨ÙÅµΩπ—°ÕlâÖëëïë}…ïŸïπ’îât4(ÄÄÄÅµΩπ—°Õlâï·¡ïπÕïÃâtÄ¨ÙÅµΩπ—°ÕlâÖëëïë}ï·¡ïπÕïÃât4(ÄÄÄÅµΩπ—°ÕlââÖ±ÖπçîâtÄÙÅµΩπ—°Õlâ…ïŸïπ’îâtÄ¥ÅµΩπ—°Õlâï·¡ïπÕïÃât4(ÄÄÄÅµΩπ—°Õlâ°ÖÕ}ëÖ—ÑâtÄÙÄ°µΩπ—°Õlâ…ïŸïπ’îâtπÖâÃ†§Ä¨ÅµΩπ—°Õlâï·¡ïπÕïÃâtπÖâÃ†§§Ä¯Ä¿∏¿¿‰4(ÄÄÄÅ…ï—’…∏ÅµΩπ—°Ãπë…Ω¿°çΩ±’µπÃılâÖëëïë}…ïŸïπ’îà∞ÄâÖëëïë}ï·¡ïπÕïÃât§4(4(4)ëïòÅùï—}¡…Ωë’ç—Ã°ÂïÖ»ËÅ•π–§Ä¥¯Å¡êπÖ—Ö…ÖµîË4(ÄÄÄÅ›•—†Åïπù•πîπçΩππïç–†§ÅÖÃÅçΩ∏Ë4(ÄÄÄÄÄÄÄÅëòÄÙÅ¡êπ…ïÖë}Õ≈±}≈’ï…‰°—ï·–†ààâM1PÅÂïÖ»∞ÅµΩπ—°}π’¥∞ÅµΩπ—°}±Öâï∞∞Å¡…Ωë’ç–∞Å≈’Öπ—•—‰∞ÅçΩÕ–∞Å…ïŸïπ’î∞Å¡…Ωô•–∞ÅΩ…•ù•∏4(ÄÄÄÄÄÄÄÄÄÄÄÅI=4Å¡…Ωë’ç—}ÕÖ±ïÃÅ]!IÅÂïÖ»ÙÈÂïÖ»Å=IHÅ	dÅµΩπ—°}π’¥∞Å¡…Ωë’ç–ààà§∞ÅçΩ∏∞Å¡Ö…ÖµÃıÏâÂïÖ»àËÅÂïÖ…Ù§4(ÄÄÄÅôΩ»ÅçΩ∞Å•∏Ä†â≈’Öπ—•—‰à∞ÄâçΩÕ–à∞Äâ…ïŸïπ’îà∞Äâ¡…Ωô•–à§Ë4(ÄÄÄÄÄÄÄÅ•òÅçΩ∞Å•∏ÅëòËÅëômçΩ±tÄÙÅ¡êπ—Ω}π’µï…•å°ëômçΩ±t∞Åï……Ω…ÃÙâçΩï…çîà§πô•±±πÑ†¿∏¿§4(ÄÄÄÅ…ï—’…∏Åëò4(4(4)ëïòÅ•µ¡Ω…—}ô•πÖπç•Ö±}…Ω›Ã°…Ω›ÃËÅ±•Õ—më•ç—mÕ—»∞ÅπÂut§Ä¥¯Å—’¡±ïm•π–∞Å•π—tË4(ÄÄÄÅ•πÕï…—ïêÄÙÅÕ≠•¡¡ïêÄÙÄ¿4(ÄÄÄÅ›•—†Åïπù•πîπâïù•∏†§ÅÖÃÅçΩ∏Ë4(ÄÄÄÄÄÄÄÅôΩ»Å…Ω‹Å•∏Å…Ω›ÃË4(ÄÄÄÄÄÄÄÄÄÄÄÅ…ïÕ’±–ÄÙÅçΩ∏πï·ïç’—î°—ï·–†ààâ%9MIPÅ%9Q<Å—…ÖπÕÖç—•ΩπÃ4(ÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ°ëÖ—î∞Å≠•πê∞ÅçÖ—ïùΩ…‰∞ÅÖµΩ’π–∞Å¡ÖÂµïπ—}µï—°Ωê∞Åï·¡ïπÕï}—Â¡î∞ÅΩ…•ù•∏∞Åëïë’¡ï}≠ï‰§4(ÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÅY1ULÄ†ÈëÖ—î∞ÄÈ≠•πê∞ÄÈçÖ—ïùΩ…‰∞ÄÈÖµΩ’π–∞ÄÈ¡ÖÂµïπ—}µï—°Ωê∞ÄÈï·¡ïπÕï}—Â¡î∞Äù•µ¡Ω…—ïêú∞ÄÈëïë’¡ï}≠ï‰§4(ÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÅ=8Å=91%PÅ<Å9=Q!%9ààà§∞4(ÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÅÏ®©Ì¨ËÅ…Ω‹πùï–°¨§ÅôΩ»Å¨Å•∏Ä†âëÖ—îà∞Äâ≠•πêà∞ÄâçÖ—ïùΩ…‰à∞Äâ¡ÖÂµïπ—}µï—°Ωêà∞Äâï·¡ïπÕï}—Â¡îà∞Äâëïë’¡ï}≠ï‰à•Ù∞ÄâÖµΩ’π–àËÅ}ÖµΩ’π–°…Ω›lâÖµΩ’π–ât•Ù§4(ÄÄÄÄÄÄÄÄÄÄÄÅ•πÕï…—ïêÄ¨ÙÅµÖ‡°…ïÕ’±–π…Ω›çΩ’π–∞Ä¿§ÏÅÕ≠•¡¡ïêÄ¨ÙÄƒÄ¥ÅµÖ‡°…ïÕ’±–π…Ω›çΩ’π–∞Ä¿§4(ÄÄÄÅ…ï—’…∏Å•πÕï…—ïê∞ÅÕ≠•¡¡ïê4(4(4)ëïòÅ•µ¡Ω…—}¡…Ωë’ç—}…Ω›Ã°…Ω›ÃËÅ±•Õ—më•ç—mÕ—»∞ÅπÂut§Ä¥¯Å—’¡±ïm•π–∞Å•π—tË4(ÄÄÄÅ•πÕï…—ïêÄÙÅÕ≠•¡¡ïêÄÙÄ¿4(ÄÄÄÅ›•—†Åïπù•πîπâïù•∏†§ÅÖÃÅçΩ∏Ë4(ÄÄÄÄÄÄÄÅôΩ»Å…Ω‹Å•∏Å…Ω›ÃË4(ÄÄÄÄÄÄÄÄÄÄÄÅ…ïÕ’±–ÄÙÅçΩ∏πï·ïç’—î°—ï·–†ààâ%9MIPÅ%9Q<Å¡…Ωë’ç—}ÕÖ±ïÃ4(ÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ°ÂïÖ»∞ÅµΩπ—°}π’¥∞ÅµΩπ—°}±Öâï∞∞Å¡…Ωë’ç–∞Å≈’Öπ—•—‰∞ÅçΩÕ–∞Å…ïŸïπ’î∞Å¡…Ωô•–∞ÅΩ…•ù•∏∞Åëïë’¡ï}≠ï‰§4(ÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÅY1ULÄ†ÈÂïÖ»∞ÄÈµΩπ—°}π’¥∞ÄÈµΩπ—°}±Öâï∞∞ÄÈ¡…Ωë’ç–∞ÄÈ≈’Öπ—•—‰∞ÄÈçΩÕ–∞ÄÈ…ïŸïπ’î∞ÄÈ¡…Ωô•–∞Äù•µ¡Ω…—ïêú∞ÄÈëïë’¡ï}≠ï‰§4(ÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÅ=8Å=91%PÅ<Å9=Q!%9ààà§∞4(ÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÅÏâÂïÖ»àËÅ…Ω›lâÂïÖ»ât∞ÄâµΩπ—°}π’¥àËÅ…Ω‹πùï–†âµΩπ—°}π’¥à§∞ÄâµΩπ—°}±Öâï∞àËÅ…Ω›lâµΩπ—°}±Öâï∞ât∞4(ÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄâ¡…Ωë’ç–àËÅ…Ω›lâ¡…Ωë’ç–ât∞Äâ≈’Öπ—•—‰àËÅ}≈’Öπ—•—‰°…Ω›lâ≈’Öπ—•—‰ât§∞ÄâçΩÕ–àËÅ}ÖµΩ’π–°…Ω›lâçΩÕ–ât§∞Äâ…ïŸïπ’îàËÅ}ÖµΩ’π–°…Ω›lâ…ïŸïπ’îât§∞4(ÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄâ¡…Ωô•–àËÅ}ÖµΩ’π–°ïç•µÖ∞°Õ—»°…Ω›lâ…ïŸïπ’îât§§µïç•µÖ∞°Õ—»°…Ω›lâçΩÕ–ât§§§∞Äâëïë’¡ï}≠ï‰àËÅ…Ω›lâëïë’¡ï}≠ï‰âuÙ§4(ÄÄÄÄÄÄÄÄÄÄÄÅ•πÕï…—ïêÄ¨ÙÅµÖ‡°…ïÕ’±–π…Ω›çΩ’π–∞Ä¿§ÏÅÕ≠•¡¡ïêÄ¨ÙÄƒÄ¥ÅµÖ‡°…ïÕ’±–π…Ω›çΩ’π–∞Ä¿§4(ÄÄÄÅ…ï—’…∏Å•πÕï…—ïê∞ÅÕ≠•¡¡ïê4(
