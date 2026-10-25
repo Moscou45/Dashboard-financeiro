@@ -2,4 +2,49 @@ from datetime import date
 import streamlit as st
 
 import db
-from auth ims½ü¶‰ËkºwµçB7BæW'&÷"‚$–æf÷&ÖRòæöÖRFò&öGWFòâ"¢VÇ6S ¢–×÷'B6ÆVæF ¢F"æFE÷&öGV7B‡v†Vâç–V"Âv†VâæÖöçF‚Â6ÆVæF"æÖöçF…öæÖU·v†VâæÖöçF…ÒÂ&öGV7BÂVçF—G’Â6÷7BÂ&WfVçVR¢7Bç7V66W72‚%fVæFFR&öGWFò6Çfâ"¢7Bç&W'Vâ‚ Ğ Ğ§&VæFW"‚Ğ 
+from auth import require_editor
+
+
+def render():
+    require_editor()
+    st.title("Cadastro de movimentaï¿½ï¿½es")
+    st.caption("Os lanï¿½amentos salvos aparecem imediatamente nos indicadores do protï¿½tipo.")
+    tab_fin, tab_prod = st.tabs(["Movimentaï¿½ï¿½o financeira", "Venda de produto"])
+    with tab_fin:
+        with st.form("financial_entry", clear_on_submit=True):
+            a, b = st.columns(2)
+            when = a.date_input("Data", value=date.today())
+            kind = b.selectbox("Tipo", ["Receita", "Despesa"])
+            category = a.text_input("Categoria", placeholder="Ex.: Venda, aluguel, peï¿½as")
+            amount = b.number_input("Valor (R$)", min_value=0.01, step=10.0, format="%.2f")
+            method = a.selectbox("Forma de pagamento", ["Nï¿½o informada", "Dinheiro", "Pix", "Cartï¿½o de dï¿½bito", "Cartï¿½o de crï¿½dito", "Boleto", "Transferï¿½ncia", "Outro"])
+            expense_type = b.selectbox("Classificaï¿½ï¿½o da despesa", ["Nï¿½o se aplica", "Fixa", "Variï¿½vel", "Nï¿½o classificada"])
+            submitted = st.form_submit_button("Salvar movimentaï¿½ï¿½o", type="primary", use_container_width=True)
+        if submitted:
+            if not category.strip():
+                st.error("Informe uma categoria para salvar.")
+            else:
+                db.add_transaction(when, kind, category, amount, None if method == "Nï¿½o informada" else method,
+                                   None if expense_type == "Nï¿½o se aplica" else expense_type)
+                st.success("Movimentaï¿½ï¿½o salva.")
+                st.rerun()
+    with tab_prod:
+        with st.form("product_entry", clear_on_submit=True):
+            a, b = st.columns(2)
+            when = a.date_input("Data da venda", value=date.today(), key="product_date")
+            product = b.text_input("Produto")
+            quantity = a.number_input("Quantidade", min_value=0.01, step=1.0)
+            cost = b.number_input("Custo total (R$)", min_value=0.0, step=10.0)
+            revenue = a.number_input("Receita total (R$)", min_value=0.0, step=10.0)
+            submitted = st.form_submit_button("Salvar venda", type="primary", use_container_width=True)
+        if submitted:
+            if not product.strip():
+                st.error("Informe o nome do produto.")
+            else:
+                import calendar
+                db.add_product(when.year, when.month, calendar.month_name[when.month], product, quantity, cost, revenue)
+                st.success("Venda de produto salva.")
+                st.rerun()
+
+
+render()
