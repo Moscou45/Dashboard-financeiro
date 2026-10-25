@@ -134,7 +134,7 @@ def seed_initial_data() -> bool:
             key = hashlib.sha256(f"seed-tx-{index}-{row}".encode("utf-8")).hexdigest()
             expense_type = row.get("expense_type")
             if expense_type and str(expense_type).casefold().startswith("vari"):
-                expense_type = "VariÃ¡vel"
+                expense_type = "Variï¿½vel"
             elif expense_type and str(expense_type).casefold().startswith("fix"):
                 expense_type = "Fixa"
             con.execute(text("""INSERT INTO transactions
@@ -143,9 +143,9 @@ def seed_initial_data() -> bool:
                 ON CONFLICT DO NOTHING"""),
                 {"date": row["date"], "kind": row["kind"], "category": row["category"], "amount": _amount(row["amount"]),
                  "payment_method": row.get("payment_method"), "expense_type": expense_type, "dedupe_key": key})
-        month_names = {"JANEIRO": 1, "FEVEREIRO": 2, "MARÃ‡O": 3, "MARCO": 3, "ABRIL": 4, "MAIO": 5, "JUNHO": 6, "JULHO": 7, "AGOSTO": 8, "SETEMBRO": 9, "OUTUBRO": 10, "NOVEMBRO": 11, "DEZEMBRO": 12}
+        month_names = {"JANEIRO": 1, "FEVEREIRO": 2, "MARï¿½O": 3, "MARCO": 3, "ABRIL": 4, "MAIO": 5, "JUNHO": 6, "JULHO": 7, "AGOSTO": 8, "SETEMBRO": 9, "OUTUBRO": 10, "NOVEMBRO": 11, "DEZEMBRO": 12}
         for index, row in enumerate(payload.get("products", [])):
-            label = str(row.get("month") or "Sem mÃªs").strip()
+            label = str(row.get("month") or "Sem mï¿½s").strip()
             key = hashlib.sha256(f"seed-product-{index}-{row}".encode("utf-8")).hexdigest()
             con.execute(text("""INSERT INTO product_sales
                 (year, month_num, month_label, product, quantity, cost, revenue, profit, origin, dedupe_key)
@@ -160,21 +160,21 @@ def seed_initial_data() -> bool:
 def import_historical_snapshot(payload: dict[str, Any]) -> dict[str, int] | None:
     """Load a normalized Excel snapshot into an empty remote database atomically."""
     if engine.dialect.name == "sqlite":
-        raise RuntimeError("A importaÃ§Ã£o histÃ³rica sÃ³ Ã© permitida no PostgreSQL remoto.")
+        raise RuntimeError("A importaï¿½ï¿½o histï¿½rica sï¿½ ï¿½ permitida no PostgreSQL remoto.")
     if not isinstance(payload, dict):
-        raise ValueError("O arquivo nÃ£o contÃ©m um objeto JSON vÃ¡lido.")
+        raise ValueError("O arquivo nï¿½o contï¿½m um objeto JSON vï¿½lido.")
 
     year = int(payload.get("year", 0))
     monthly_summary = payload.get("monthly_summary")
     transactions = payload.get("transactions")
     products = payload.get("products")
     if year < 2000 or not isinstance(monthly_summary, dict) or len(monthly_summary) != 12:
-        raise ValueError("O histÃ³rico precisa conter o ano e os 12 resumos mensais.")
+        raise ValueError("O histï¿½rico precisa conter o ano e os 12 resumos mensais.")
     if not isinstance(transactions, list) or not isinstance(products, list):
-        raise ValueError("O arquivo precisa conter listas de movimentaÃ§Ãµes e produtos.")
+        raise ValueError("O arquivo precisa conter listas de movimentaï¿½ï¿½es e produtos.")
 
     month_names = {
-        "JANEIRO": 1, "FEVEREIRO": 2, "MARÃ‡O": 3, "MARCO": 3,
+        "JANEIRO": 1, "FEVEREIRO": 2, "MARï¿½O": 3, "MARCO": 3,
         "ABRIL": 4, "MAIO": 5, "JUNHO": 6, "JULHO": 7,
         "AGOSTO": 8, "SETEMBRO": 9, "OUTUBRO": 10,
         "NOVEMBRO": 11, "DEZEMBRO": 12,
@@ -192,7 +192,7 @@ def import_historical_snapshot(payload: dict[str, Any]) -> dict[str, int] | None
         for month_text, values in monthly_summary.items():
             month = int(month_text)
             if month < 1 or month > 12:
-                raise ValueError("O resumo mensal contÃ©m um mÃªs invÃ¡lido.")
+                raise ValueError("O resumo mensal contï¿½m um mï¿½s invï¿½lido.")
             result = con.execute(text("""INSERT INTO monthly_summary(year, month, revenue, expenses)
                 VALUES (:year, :month, :revenue, :expenses) ON CONFLICT DO NOTHING"""),
                 {"year": year, "month": month, "revenue": _amount(values["revenue"]),
@@ -201,11 +201,11 @@ def import_historical_snapshot(payload: dict[str, Any]) -> dict[str, int] | None
 
         for index, row in enumerate(transactions):
             if row.get("kind") not in ("Receita", "Despesa"):
-                raise ValueError(f"Tipo invÃ¡lido em um lanÃ§amento do histÃ³rico (posiÃ§Ã£o {index + 1}).")
+                raise ValueError(f"Tipo invï¿½lido em um lanï¿½amento do histï¿½rico (posiï¿½ï¿½o {index + 1}).")
             key = hashlib.sha256(f"seed-tx-{index}-{row}".encode("utf-8")).hexdigest()
             expense_type = row.get("expense_type")
             if expense_type and str(expense_type).casefold().startswith("vari"):
-                expense_type = "VariÃ¡vel"
+                expense_type = "Variï¿½vel"
             elif expense_type and str(expense_type).casefold().startswith("fix"):
                 expense_type = "Fixa"
             result = con.execute(text("""INSERT INTO transactions
@@ -218,7 +218,7 @@ def import_historical_snapshot(payload: dict[str, Any]) -> dict[str, int] | None
             inserted["transactions"] += max(result.rowcount, 0)
 
         for index, row in enumerate(products):
-            label = str(row.get("month") or "Sem mÃªs").strip()
+            label = str(row.get("month") or "Sem mï¿½s").strip()
             key = hashlib.sha256(f"seed-product-{index}-{row}".encode("utf-8")).hexdigest()
             result = con.execute(text("""INSERT INTO product_sales
                 (year, month_num, month_label, product, quantity, cost, revenue, profit, origin, dedupe_key)
@@ -226,4 +226,111 @@ def import_historical_snapshot(payload: dict[str, Any]) -> dict[str, int] | None
                 ON CONFLICT DO NOTHING"""),
                 {"year": year, "month_num": month_names.get(label.upper()), "month_label": label,
                  "product": row["product"], "quantity": _quantity(row["quantity"]),
-   ßÏ-¢G§²ÚîÆ­yİ•}ÑåÁ”°€é½É¥¥¸°€é‘•‘ÕÁ•}­•ä¤4(€€€€€€€€€€€=8=91%P<9=Q!%9ˆˆˆ¤°4(€€€€€€€€€€€ì‰‘…Ñ”ˆèİ¡•¸¹¥Í½™½Éµ…Ğ ¤°€‰­¥¹ˆè­¥¹°€‰…Ñ•½Éäˆè…Ñ•½Éä¹ÍÑÉ¥À ¤½È­¥¹°€‰…µ½Õ¹Ğˆè}…µ½Õ¹Ğ¡…µ½Õ¹Ğ¤°4(€€€€€€€€€€€€€‰Á…åµ•¹Ñ}µ•Ñ¡½ˆèÁ…åµ•¹Ñ}µ•Ñ¡½°€‰•áÁ•¹Í•}ÑåÁ”ˆè•áÁ•¹Í•}ÑåÁ”°€‰½É¥¥¸ˆè½É¥¥¸°€‰‘•‘ÕÁ•}­•äˆè‘•‘ÕÁ•}­•åô¤4(€€€€€€€É•ÑÕÉ¸É•ÍÕ±Ğ¹É½İ½Õ¹Ğ€ø€À4(4(4)‘•˜…‘‘}ÁÉ½‘ÕĞ¡å•…Èè¥¹Ğ°µ½¹Ñ¡}¹Õ´è¥¹Ğğ9½¹”°µ½¹Ñ¡}±…‰•°èÍÑÈ°ÁÉ½‘ÕĞèÍÑÈ°4(€€€€€€€€€€€€€€€ÅÕ…¹Ñ¥Ñäè™±½…Ğ°½ÍĞè™±½…Ğ°É•Ù•¹Õ”è™±½…Ğ°½É¥¥¸èÍÑÈ€ô€‰µ…¹Õ…°ˆ°4(€€€€€€€€€€€€€€€‘•‘ÕÁ•}­•äèÍÑÈğ9½¹”€ô9½¹”¤€´ø9½¹”è4(€€€İ¥Ñ •¹¥¹”¹‰•¥¸ ¤…Ì½¸è4(€€€€€€€½¸¹•á•ÕÑ”¡Ñ•áĞ ˆˆ‰%9MIP%9Q<ÁÉ½‘ÕÑ}Í…±•Ì4(€€€€€€€€€€€€¡å•…È°µ½¹Ñ¡}¹Õ´°µ½¹Ñ¡}±…‰•°°ÁÉ½‘ÕĞ°ÅÕ…¹Ñ¥Ñä°½ÍĞ°É•Ù•¹Õ”°ÁÉ½™¥Ğ°½É¥¥¸°‘•‘ÕÁ•}­•ä¤4(€€€€€€€€€€€Y1UL€ éå•…È°€éµ½¹Ñ¡}¹Õ´°€éµ½¹Ñ¡}±…‰•°°€éÁÉ½‘ÕĞ°€éÅÕ…¹Ñ¥Ñä°€é½ÍĞ°€éÉ•Ù•¹Õ”°€éÁÉ½™¥Ğ°€é½É¥¥¸°€é‘•‘ÕÁ•}­•ä¤4(€€€€€€€€€€€=8=91%P<9=Q!%9ˆˆˆ¤°4(€€€€€€€€€€€ì‰å•…Èˆèå•…È°€‰µ½¹Ñ¡}¹Õ´ˆèµ½¹Ñ¡}¹Õ´°€‰µ½¹Ñ¡}±…‰•°ˆèµ½¹Ñ¡}±…‰•°°€‰ÁÉ½‘ÕĞˆèÁÉ½‘ÕĞ¹ÍÑÉ¥À ¤°4(€€€€€€€€€€€€€‰ÅÕ…¹Ñ¥Ñäˆè}ÅÕ…¹Ñ¥Ñä¡ÅÕ…¹Ñ¥Ñä¤°€‰½ÍĞˆè}…µ½Õ¹Ğ¡½ÍĞ¤°€‰É•Ù•¹Õ”ˆè}…µ½Õ¹Ğ¡É•Ù•¹Õ”¤°4(€€€€€€€€€€€€€‰ÁÉ½™¥Ğˆè}…µ½Õ¹Ğ¡•¥µ…°¡ÍÑÈ¡É•Ù•¹Õ”¤¤µ•¥µ…°¡ÍÑÈ¡½ÍĞ¤¤¤°€‰½É¥¥¸ˆè½É¥¥¸°€‰‘•‘ÕÁ•}­•äˆè‘•‘ÕÁ•}­•åô¤4(4(4)‘•˜•Ñ}ÑÉ…¹Í…Ñ¥½¹Ì ¤€´øÁ¹…Ñ…É…µ”è4(€€€İ¥Ñ •¹¥¹”¹½¹¹•Ğ ¤…Ì½¸è4(€€€€€€€‘˜€ôÁ¹É•…‘}ÍÅ±}ÅÕ•Éä¡Ñ•áĞ ˆˆ‰M1P¥°‘…Ñ”°­¥¹°…Ñ•½Éä°…µ½Õ¹Ğ°Á…åµ•¹Ñ}µ•Ñ¡½°•áÁ•¹Í•}ÑåÁ”°½É¥¥¸4(€€€€€€€€€€€I=4ÑÉ…¹Í…Ñ¥½¹Ì=IH	d‘…Ñ”M°¥Mˆˆˆ¤°½¸¤4(€€€¥˜¹½Ğ‘˜¹•µÁÑäè4(€€€€€€€‘™l‰‘…Ñ”‰t€ôÁ¹Ñ½}‘…Ñ•Ñ¥µ”¡‘™l‰‘…Ñ”‰t°•ÉÉ½ÉÌô‰½•É”ˆ¤4(€€€€€€€‘™l‰…µ½Õ¹Ğ‰t€ôÁ¹Ñ½}¹Õµ•É¥Œ¡‘™l‰…µ½Õ¹Ğ‰t°•ÉÉ½ÉÌô‰½•É”ˆ¤¹™¥±±¹„ À¸À¤4(€€€É•ÑÕÉ¸‘˜4(4(4)‘•˜•Ñ}µ½¹Ñ¡±å}ÍÕµµ…Éä¡å•…Èè¥¹Ğ¤€´øÁ¹…Ñ…É…µ”è4(€€€µ½¹Ñ¡Ì€ôÁ¹…Ñ…É…µ”¡ì‰µ½¹Ñ ˆè±¥ÍĞ¡É…¹” Ä°€ÄÌ¤¥ô¤4(€€€µ½¹Ñ¡Íl‰å•…È‰t€ôå•…È4(€€€İ¥Ñ •¹¥¹”¹½¹¹•Ğ ¤…Ì½¸è4(€€€€€€€‰…Í”€ôÁ¹É•…‘}ÍÅ±}ÅÕ•Éä¡Ñ•áĞ ‰M1Pµ½¹Ñ °É•Ù•¹Õ”°•áÁ•¹Í•ÌI=4µ½¹Ñ¡±å}ÍÕµµ…Éä]!Iå•…Èôéå•…Èˆ¤°½¸°Á…É…µÌõì‰å•…Èˆèå•…Éô¤4(€€€€€€€¡…¹•Ì€ôÁ¹É•…‘}ÍÅ±}ÅÕ•Éä¡Ñ•áĞ ˆˆ‰M1PMP¡ÍÕ‰ÍÑÈ¡‘…Ñ”°€Ø°€È¤L%9QH¤Lµ½¹Ñ °4(€€€€€€€€€€€MU4¡M]!8­¥¹ôI••¥Ñ„œQ!8…µ½Õ¹Ğ1M€À9¤L…‘‘•‘}É•Ù•¹Õ”°4(€€€€€€€€€€€MU4¡M]!8­¥¹ô•ÍÁ•Í„œQ!8…µ½Õ¹Ğ1M€À9¤L…‘‘•‘}•áÁ•¹Í•Ì4(€€€€€€€€€€€I=4ÑÉ…¹Í…Ñ¥½¹Ì]!IMP¡ÍÕ‰ÍÑÈ¡‘…Ñ”°Ä°Ğ¤L%9QH¤ôéå•…È9½É¥¥¸„ô‰…Í•}•á•°œ4(€€€€€€€€€€€I=U@	dMP¡ÍÕ‰ÍÑÈ¡‘…Ñ”°€Ø°€È¤L%9QH¤ˆˆˆ¤°½¸°Á…É…µÌõì‰å•…Èˆèå•…Éô¤4(€€€µ½¹Ñ¡Ì€ôµ½¹Ñ¡Ì¹µ•É”¡‰…Í”°½¸ô‰µ½¹Ñ ˆ°¡½Üô‰±•™Ğˆ¤¹µ•É”¡¡…¹•Ì°½¸ô‰µ½¹Ñ ˆ°¡½Üô‰±•™Ğˆ¤4(€€€™½È½°¥¸€ ‰É•Ù•¹Õ”ˆ°€‰•áÁ•¹Í•Ìˆ°€‰…‘‘•‘}É•Ù•¹Õ”ˆ°€‰…‘‘•‘}•áÁ•¹Í•Ìˆ¤è4(€€€€€€€µ½¹Ñ¡Ím½±t€ôµ½¹Ñ¡Ím½±t¹™¥±±¹„ À¸À¤4(€€€€€€€µ½¹Ñ¡Ím½±t€ôÁ¹Ñ½}¹Õµ•É¥Œ¡µ½¹Ñ¡Ím½±t°•ÉÉ½ÉÌô‰½•É”ˆ¤¹™¥±±¹„ À¸À¤4(€€€µ½¹Ñ¡Íl‰É•Ù•¹Õ”‰t€¬ôµ½¹Ñ¡Íl‰…‘‘•‘}É•Ù•¹Õ”‰t4(€€€µ½¹Ñ¡Íl‰•áÁ•¹Í•Ì‰t€¬ôµ½¹Ñ¡Íl‰…‘‘•‘}•áÁ•¹Í•Ì‰t4(€€€µ½¹Ñ¡Íl‰‰…±…¹”‰t€ôµ½¹Ñ¡Íl‰É•Ù•¹Õ”‰t€´µ½¹Ñ¡Íl‰•áÁ•¹Í•Ì‰t4(€€€µ½¹Ñ¡Íl‰¡…Í}‘…Ñ„‰t€ô€¡µ½¹Ñ¡Íl‰É•Ù•¹Õ”‰t¹…‰Ì ¤€¬µ½¹Ñ¡Íl‰•áÁ•¹Í•Ì‰t¹…‰Ì ¤¤€ø€À¸ÀÀä4(€€€É•ÑÕÉ¸µ½¹Ñ¡Ì¹‘É½À¡½±Õµ¹Ìõl‰…‘‘•‘}É•Ù•¹Õ”ˆ°€‰…‘‘•‘}•áÁ•¹Í•Ì‰t¤4(4(4)‘•˜•Ñ}ÁÉ½‘ÕÑÌ¡å•…Èè¥¹Ğ¤€´øÁ¹…Ñ…É…µ”è4(€€€İ¥Ñ •¹¥¹”¹½¹¹•Ğ ¤…Ì½¸è4(€€€€€€€‘˜€ôÁ¹É•…‘}ÍÅ±}ÅÕ•Éä¡Ñ•áĞ ˆˆ‰M1På•…È°µ½¹Ñ¡}¹Õ´°µ½¹Ñ¡}±…‰•°°ÁÉ½‘ÕĞ°ÅÕ…¹Ñ¥Ñä°½ÍĞ°É•Ù•¹Õ”°ÁÉ½™¥Ğ°½É¥¥¸4(€€€€€€€€€€€I=4ÁÉ½‘ÕÑ}Í…±•Ì]!Iå•…Èôéå•…È=IH	dµ½¹Ñ¡}¹Õ´°ÁÉ½‘ÕĞˆˆˆ¤°½¸°Á…É…µÌõì‰å•…Èˆèå•…Éô¤4(€€€™½È½°¥¸€ ‰ÅÕ…¹Ñ¥Ñäˆ°€‰½ÍĞˆ°€‰É•Ù•¹Õ”ˆ°€‰ÁÉ½™¥Ğˆ¤è4(€€€€€€€¥˜½°¥¸‘˜è‘™m½±t€ôÁ¹Ñ½}¹Õµ•É¥Œ¡‘™m½±t°•ÉÉ½ÉÌô‰½•É”ˆ¤¹™¥±±¹„ À¸À¤4(€€€É•ÑÕÉ¸‘˜4(4(4)‘•˜¥µÁ½ÉÑ}™¥¹…¹¥…±}É½İÌ¡É½İÌè±¥ÍÑm‘¥ÑmÍÑÈ°¹åut¤€´øÑÕÁ±•m¥¹Ğ°¥¹Ñtè4(€€€¥¹Í•ÉÑ•€ôÍ­¥ÁÁ•€ô€À4(€€€İ¥Ñ •¹¥¹”¹‰•¥¸ ¤…Ì½¸è4(€€€€€€€™½ÈÉ½Ü¥¸É½İÌè4(€€€€€€€€€€€É•ÍÕ±Ğ€ô½¸¹•á•ÕÑ”¡Ñ•áĞ ˆˆ‰%9MIP%9Q<ÑÉ…¹Í…Ñ¥½¹Ì4(€€€€€€€€€€€€€€€€¡‘…Ñ”°­¥¹°…Ñ•½Éä°…µ½Õ¹Ğ°Á…åµ•¹Ñ}µ•Ñ¡½°•áÁ•¹Í•}ÑåÁ”°½É¥¥¸°‘•‘ÕÁ•}­•ä¤4(€€€€€€€€€€€€€€€Y1UL€ é‘…Ñ”°€é­¥¹°€é…Ñ•½Éä°€é…µ½Õ¹Ğ°€éÁ…åµ•¹Ñ}µ•Ñ¡½°€é•áÁ•¹Í•}ÑåÁ”°€¥µÁ½ÉÑ•œ°€é‘•‘ÕÁ•}­•ä¤4(€€€€€€€€€€€€€€€=8=91%P<9=Q!%9ˆˆˆ¤°4(€€€€€€€€€€€€€€€ì¨©í¬èÉ½Ü¹•Ğ¡¬¤™½È¬¥¸€ ‰‘…Ñ”ˆ°€‰­¥¹ˆ°€‰…Ñ•½Éäˆ°€‰Á…åµ•¹Ñ}µ•Ñ¡½ˆ°€‰•áÁ•¹Í•}ÑåÁ”ˆ°€‰‘•‘ÕÁ•}­•äˆ¥ô°€‰…µ½Õ¹Ğˆè}…µ½Õ¹Ğ¡É½İl‰…µ½Õ¹Ğ‰t¥ô¤4(€€€€€€€€€€€¥¹Í•ÉÑ•€¬ôµ…à¡É•ÍÕ±Ğ¹É½İ½Õ¹Ğ°€À¤ìÍ­¥ÁÁ•€¬ô€Ä€´µ…à¡É•ÍÕ±Ğ¹É½İ½Õ¹Ğ°€À¤4(€€€É•ÑÕÉ¸¥¹Í•ÉÑ•°Í­¥ÁÁ•4(4(4)‘•˜¥µÁ½ÉÑ}ÁÉ½‘ÕÑ}É½İÌ¡É½İÌè±¥ÍÑm‘¥ÑmÍÑÈ°¹åut¤€´øÑÕÁ±•m¥¹Ğ°¥¹Ñtè4(€€€¥¹Í•ÉÑ•€ôÍ­¥ÁÁ•€ô€À4(€€€İ¥Ñ •¹¥¹”¹‰•¥¸ ¤…Ì½¸è4(€€€€€€€™½ÈÉ½Ü¥¸É½İÌè4(€€€€€€€€€€€É•ÍÕ±Ğ€ô½¸¹•á•ÕÑ”¡Ñ•áĞ ˆˆ‰%9MIP%9Q<ÁÉ½‘ÕÑ}Í…±•Ì4(€€€€€€€€€€€€€€€€¡å•…È°µ½¹Ñ¡}¹Õ´°µ½¹Ñ¡}±…‰•°°ÁÉ½‘ÕĞ°ÅÕ…¹Ñ¥Ñä°½ÍĞ°É•Ù•¹Õ”°ÁÉ½™¥Ğ°½É¥¥¸°‘•‘ÕÁ•}­•ä¤4(€€€€€€€€€€€€€€€Y1UL€ éå•…È°€éµ½¹Ñ¡}¹Õ´°€éµ½¹Ñ¡}±…‰•°°€éÁÉ½‘ÕĞ°€éÅÕ…¹Ñ¥Ñä°€é½ÍĞ°€éÉ•Ù•¹Õ”°€éÁÉ½™¥Ğ°€¥µÁ½ÉÑ•œ°€é‘•‘ÕÁ•}­•ä¤4(€€€€€€€€€€€€€€€=8=91%P<9=Q!%9ˆˆˆ¤°4(€€€€€€€€€€€€€€€ì‰å•…ÈˆèÉ½İl‰å•…È‰t°€‰µ½¹Ñ¡}¹Õ´ˆèÉ½Ü¹•Ğ ‰µ½¹Ñ¡}¹Õ´ˆ¤°€‰µ½¹Ñ¡}±…‰•°ˆèÉ½İl‰µ½¹Ñ¡}±…‰•°‰t°4(€€€€€€€€€€€€€€€€€‰ÁÉ½‘ÕĞˆèÉ½İl‰ÁÉ½‘ÕĞ‰t°€‰ÅÕ…¹Ñ¥Ñäˆè}ÅÕ…¹Ñ¥Ñä¡É½İl‰ÅÕ…¹Ñ¥Ñä‰t¤°€‰½ÍĞˆè}…µ½Õ¹Ğ¡É½İl‰½ÍĞ‰t¤°€‰É•Ù•¹Õ”ˆè}…µ½Õ¹Ğ¡É½İl‰É•Ù•¹Õ”‰t¤°4(€€€€€€€€€€€€€€€€€‰ÁÉ½™¥Ğˆè}…µ½Õ¹Ğ¡•¥µ…°¡ÍÑÈ¡É½İl‰É•Ù•¹Õ”‰t¤¤µ•¥µ…°¡ÍÑÈ¡É½İl‰½ÍĞ‰t¤¤¤°€‰‘•‘ÕÁ•}­•äˆèÉ½İl‰‘•‘ÕÁ•}­•ä‰uô¤4(€€€€€€€€€€€¥¹Í•ÉÑ•€¬ôµ…à¡É•ÍÕ±Ğ¹É½İ½Õ¹Ğ°€À¤ìÍ­¥ÁÁ•€¬ô€Ä€´µ…à¡É•ÍÕ±Ğ¹É½İ½Õ¹Ğ°€À¤4(€€€É•ÑÕÉ¸¥¹Í•ÉÑ•°Í­¥ÁÁ•4(
+                 "cost": _amount(row["cost"]), "revenue": _amount(row["revenue"]),
+                 "profit": _amount(row.get("profit", float(row["revenue"]) - float(row["cost"]))),
+                 "dedupe_key": key})
+            inserted["products"] += max(result.rowcount, 0)
+
+    return inserted
+
+
+def seed_remote_data() -> bool:
+    """Load the local normalized snapshot into the configured remote database once."""
+    if engine.dialect.name == "sqlite" or not SEED_PATH.exists():
+        return False
+    payload = json.loads(SEED_PATH.read_text(encoding="utf-8"))
+    return import_historical_snapshot(payload) is not None
+
+
+def add_transaction(when: date, kind: str, category: str, amount: float,
+                    payment_method: str | None = None, expense_type: str | None = None,
+                    origin: str = "manual", dedupe_key: str | None = None) -> bool:
+    with engine.begin() as con:
+        result = con.execute(text("""INSERT INTO transactions
+            (date, kind, category, amount, payment_method, expense_type, origin, dedupe_key)
+            VALUES (:date, :kind, :category, :amount, :payment_method, :expense_type, :origin, :dedupe_key)
+            ON CONFLICT DO NOTHING"""),
+            {"date": when.isoformat(), "kind": kind, "category": category.strip() or kind, "amount": _amount(amount),
+             "payment_method": payment_method, "expense_type": expense_type, "origin": origin, "dedupe_key": dedupe_key})
+        return result.rowcount > 0
+
+
+def add_product(year: int, month_num: int | None, month_label: str, product: str,
+                quantity: float, cost: float, revenue: float, origin: str = "manual",
+                dedupe_key: str | None = None) -> None:
+    with engine.begin() as con:
+        con.execute(text("""INSERT INTO product_sales
+            (year, month_num, month_label, product, quantity, cost, revenue, profit, origin, dedupe_key)
+            VALUES (:year, :month_num, :month_label, :product, :quantity, :cost, :revenue, :profit, :origin, :dedupe_key)
+            ON CONFLICT DO NOTHING"""),
+            {"year": year, "month_num": month_num, "month_label": month_label, "product": product.strip(),
+             "quantity": _quantity(quantity), "cost": _amount(cost), "revenue": _amount(revenue),
+             "profit": _amount(Decimal(str(revenue))-Decimal(str(cost))), "origin": origin, "dedupe_key": dedupe_key})
+
+
+def get_transactions() -> pd.DataFrame:
+    with engine.connect() as con:
+        df = pd.read_sql_query(text("""SELECT id, date, kind, category, amount, payment_method, expense_type, origin
+            FROM transactions ORDER BY date DESC, id DESC"""), con)
+    if not df.empty:
+        df["date"] = pd.to_datetime(df["date"], errors="coerce")
+        df["amount"] = pd.to_numeric(df["amount"], errors="coerce").fillna(0.0)
+    return df
+
+
+def get_monthly_summary(year: int) -> pd.DataFrame:
+    months = pd.DataFrame({"month": list(range(1, 13))})
+    months["year"] = year
+    with engine.connect() as con:
+        base = pd.read_sql_query(text("SELECT month, revenue, expenses FROM monthly_summary WHERE year=:year"), con, params={"year": year})
+        changes = pd.read_sql_query(text("""SELECT CAST(substr(date, 6, 2) AS INTEGER) AS month,
+            SUM(CASE WHEN kind='Receita' THEN amount ELSE 0 END) AS added_revenue,
+            SUM(CASE WHEN kind='Despesa' THEN amount ELSE 0 END) AS added_expenses
+            FROM transactions WHERE CAST(substr(date,1,4) AS INTEGER)=:year AND origin!='base_excel'
+            GROUP BY CAST(substr(date, 6, 2) AS INTEGER)"""), con, params={"year": year})
+    months = months.merge(base, on="month", how="left").merge(changes, on="month", how="left")
+    for col in ("revenue", "expenses", "added_revenue", "added_expenses"):
+        months[col] = months[col].fillna(0.0)
+        months[col] = pd.to_numeric(months[col], errors="coerce").fillna(0.0)
+    months["revenue"] += months["added_revenue"]
+    months["expenses"] += months["added_expenses"]
+    months["balance"] = months["revenue"] - months["expenses"]
+    months["has_data"] = (months["revenue"].abs() + months["expenses"].abs()) > 0.009
+    return months.drop(columns=["added_revenue", "added_expenses"])
+
+
+def get_products(year: int) -> pd.DataFrame:
+    with engine.connect() as con:
+        df = pd.read_sql_query(text("""SELECT year, month_num, month_label, product, quantity, cost, revenue, profit, origin
+            FROM product_sales WHERE year=:year ORDER BY month_num, product"""), con, params={"year": year})
+    for col in ("quantity", "cost", "revenue", "profit"):
+        if col in df: df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0.0)
+    return df
+
+
+def import_financial_rows(rows: list[dict[str, Any]]) -> tuple[int, int]:
+    inserted = skipped = 0
+    with engine.begin() as con:
+        for row in rows:
+            result = con.execute(text("""INSERT INTO transactions
+                (date, kind, category, amount, payment_method, expense_type, origin, dedupe_key)
+                VALUES (:date, :kind, :category, :amount, :payment_method, :expense_type, 'imported', :dedupe_key)
+                ON CONFLICT DO NOTHING"""),
+                {**{k: row.get(k) for k in ("date", "kind", "category", "payment_method", "expense_type", "dedupe_key")}, "amount": _amount(row["amount"])})
+            inserted += max(result.rowcount, 0); skipped += 1 - max(result.rowcount, 0)
+    return inserted, skipped
+
+
+def import_product_rows(rows: list[dict[str, Any]]) -> tuple[int, int]:
+    inserted = skipped = 0
+    with engine.begin() as con:
+        for row in rows:
+            result = con.execute(text("""INSERT INTO product_sales
+                (year, month_num, month_label, product, quantity, cost, revenue, profit, origin, dedupe_key)
+                VALUES (:year, :month_num, :month_label, :product, :quantity, :cost, :revenue, :profit, 'imported', :dedupe_key)
+                ON CONFLICT DO NOTHING"""),
+                {"year": row["year"], "month_num": row.get("month_num"), "month_label": row["month_label"],
+                 "product": row["product"], "quantity": _quantity(row["quantity"]), "cost": _amount(row["cost"]), "revenue": _amount(row["revenue"]),
+                 "profit": _amount(Decimal(str(row["revenue"]))-Decimal(str(row["cost"]))), "dedupe_key": row["dedupe_key"]})
+            inserted += max(result.rowcount, 0); skipped += 1 - max(result.rowcount, 0)
+    return inserted, skipped
