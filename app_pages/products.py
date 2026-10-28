@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 
 import db
-from charts import bars3d
+from charts import CHART_CONFIG, grouped_bar
 from app_pages.common import brl, selected_year, export_csv
 
 
@@ -30,13 +30,16 @@ def render():
     c[0].metric("Unidades vendidas", f"{view.quantity.sum():,.0f}".replace(",", "."))
     c[1].metric("Receita de produtos", brl(view.revenue.sum()))
     c[2].metric("Lucro registrado", brl(view.profit.sum()))
-    st.pyplot(bars3d(by_qty.product, [by_qty.quantity], "Mais vendidos por quantidade", ["Unidades"], ["#526bff"], currency=False), width="stretch", alt="Gráfico 3D com os doze produtos mais vendidos por quantidade")
-    st.pyplot(bars3d(by_profit.product, [by_profit.profit], "Produtos com maior lucro registrado", ["Lucro"], ["#29b6a6"]), width="stretch", alt="Gráfico 3D com os doze produtos com maior lucro")
+    quantity_fig = grouped_bar(by_qty.product, [by_qty.quantity], "Produtos mais vendidos", ["Unidades"], ["#4f63f5"], currency=False, horizontal=True)
+    profit_fig = grouped_bar(by_profit.product, [by_profit.profit], "Produtos com maior lucro registrado", ["Lucro"], ["#20b486"], currency=True, horizontal=True)
+    st.plotly_chart(quantity_fig, width="stretch", theme=None, config=CHART_CONFIG, alt="Ranking interativo dos doze produtos mais vendidos por quantidade", key="top_products_quantity")
+    st.plotly_chart(profit_fig, width="stretch", theme=None, config=CHART_CONFIG, alt="Ranking interativo dos doze produtos com maior lucro registrado", key="top_products_profit")
     st.subheader("Detalhamento por produto")
-    table = agg.sort_values("profit", ascending=False).rename(columns={"product":"Produto", "quantity":"Quantidade", "revenue":"Receita", "cost":"Custo", "profit":"Lucro"})
-    st.dataframe(table, hide_index=True, use_container_width=True, column_config={"Receita":st.column_config.NumberColumn(format="R$ %.2f"), "Custo":st.column_config.NumberColumn(format="R$ %.2f"), "Lucro":st.column_config.NumberColumn(format="R$ %.2f")})
+    table = agg.sort_values("profit", ascending=False).rename(columns={"product": "Produto", "quantity": "Quantidade", "revenue": "Receita", "cost": "Custo", "profit": "Lucro"})
+    st.dataframe(table, hide_index=True, use_container_width=True, column_config={"Receita": st.column_config.NumberColumn(format="R$ %.2f"), "Custo": st.column_config.NumberColumn(format="R$ %.2f"), "Lucro": st.column_config.NumberColumn(format="R$ %.2f")})
     export_csv(table, "Exportar produtos CSV", f"produtos_{year}.csv")
     st.caption("O lucro por produto é calculado como receita menos custo na própria linha. Margem e lucro líquido consolidado permanecem fora desta versão.")
 
 
 render()
+

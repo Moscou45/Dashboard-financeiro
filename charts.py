@@ -1,81 +1,112 @@
 from __future__ import annotations
 
-import matplotlib.pyplot as plt
+from collections.abc import Sequence
+
 import numpy as np
-import pandas as pd
-from mpl_toolkits.mplot3d.art3d import Poly3DCollection
+import plotly.graph_objects as go
 
-BLUE = "#526bff"
-TEAL = "#29b6a6"
-RED = "#ef6a72"
-GOLD = "#f5b544"
-PALETTE = [BLUE, TEAL, GOLD, RED, "#9270db", "#47a8e8", "#8bc34a", "#ff8a65"]
+BLUE = "#4f63f5"
+TEAL = "#20b486"
+RED = "#e36578"
+GOLD = "#f1a33c"
+PURPLE = "#8b6fe8"
+SKY = "#49a4c8"
+PALETTE = [BLUE, TEAL, GOLD, RED, PURPLE, SKY, "#8b9bb4", "#d26ca5"]
+CHART_CONFIG = {"displayModeBar": "hover", "displaylogo": False, "responsive": True}
 
 
-def _finish(fig, title: str):
-    fig.patch.set_facecolor("white")
-    fig.suptitle(title, x=0.04, ha="left", fontsize=13, fontweight="bold", color="#243147")
-    fig.tight_layout(rect=(0, 0, 1, .93))
+def _layout(fig: go.Figure, title: str, height: int = 380) -> go.Figure:
+    fig.update_layout(
+        title={"text": title, "x": 0.015, "xanchor": "left", "font": {"size": 16, "color": "#172033"}},
+        template="plotly_white",
+        height=height,
+        margin={"l": 18, "r": 18, "t": 62, "b": 28},
+        font={"family": "Inter, Arial, sans-serif", "size": 12, "color": "#526078"},
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        hoverlabel={"bgcolor": "#172033", "font": {"color": "white", "size": 12}, "bordercolor": "#172033"},
+        legend={"orientation": "h", "yanchor": "bottom", "y": 1.02, "x": 0, "xanchor": "left", "title_text": ""},
+        hovermode="x unified",
+    )
+    fig.update_xaxes(showgrid=False, zeroline=False, linecolor="#e8edf4", tickfont={"color": "#68758b"})
+    fig.update_yaxes(showgrid=True, gridcolor="#edf1f6", zeroline=False, linecolor="rgba(0,0,0,0)", tickfont={"color": "#68758b"})
     return fig
 
 
-def bars3d(labels, series, title, series_names, colors=None, currency=True):
-    colors = colors or [BLUE, RED, TEAL]
-    fig = plt.figure(figsize=(8.2, 3.5))
-    ax = fig.add_subplot(111, projection="3d")
-    x = np.arange(len(labels))
-    width = .62 / max(1, len(series))
-    vals = np.asarray(series, dtype=float)
-    floor = min(0.0, float(np.nanmin(vals)) * 1.05) if vals.size else 0.0
-    for i, values in enumerate(series):
-        y = np.full(len(labels), i * width)
-        heights = np.asarray(values, dtype=float) - floor
-        ax.bar3d(x - .3 + i * width, y, np.full(len(labels), floor), width * .9, width * .85, heights,
-                 color=colors[i % len(colors)], shade=True, alpha=.95, zsort="average")
-    ax.set_xticks(x, labels, fontsize=8)
-    ax.set_yticks(np.arange(len(series_names)) * width + width / 2, series_names, fontsize=8)
-    ax.set_zlim(floor, max(1.0, float(np.nanmax(vals)) * 1.13))
-    ax.set_zlabel("R$" if currency else "Quantidade", labelpad=2, fontsize=8)
-    ax.view_init(elev=22, azim=-57)
-    ax.grid(True, alpha=.18)
-    ax.xaxis.pane.set_alpha(.04); ax.yaxis.pane.set_alpha(.02); ax.zaxis.pane.set_alpha(.02)
-    ax.tick_params(axis="z", labelsize=7, pad=0)
-    return _finish(fig, title)
+def _money_hover(series: str) -> str:
+    return f"<b>{series}</b><br>%{{x}}<br>R$ %{{y:,.2f}}<extra></extra>"
 
 
-def pie3d(labels, values, title):
-    vals = np.asarray(values, dtype=float)
-    keep = vals > 0
-    labels = [l for l, k in zip(labels, keep) if k]
-    vals = vals[keep]
-    fig = plt.figure(figsize=(5.8, 3.5))
-    ax = fig.add_subplot(111, projection="3d")
-    if vals.size == 0:
-        ax.text2D(.3, .5, "Sem dados no período", transform=ax.transAxes, color="#738094")
+def financial_overview(labels: Sequence[str], revenue: Sequence[float], expenses: Sequence[float], balance: Sequence[float]) -> go.Figure:
+    fig = go.Figure()
+    fig.add_bar(x=list(labels), y=list(revenue), name="Receitas", marker_color=BLUE, marker_line_width=0, hovertemplate=_money_hover("Receitas"))
+    fig.add_bar(x=list(labels), y=list(expenses), name="Despesas", marker_color=RED, marker_line_width=0, hovertemplate=_money_hover("Despesas"))
+    fig.add_scatter(x=list(labels), y=list(balance), name="Saldo", mode="lines+markers", line={"color": TEAL, "width": 3}, marker={"size": 7, "line": {"color": "white", "width": 1.5}}, hovertemplate=_money_hover("Saldo"))
+    fig.update_layout(barmode="group", bargap=0.28, bargroupgap=0.12)
+    fig.update_yaxes(tickprefix="R$ ", tickformat="~s", separatethousands=True)
+    return _layout(fig, "Receitas, despesas e saldo por mês", 420)
+
+
+def donut_chart(labels: Sequence[str], values: Sequence[float], title: str) -> go.Figure:
+    clean = [(str(label), float(value)) for label, value in zip(labels, values) if np.isfinite(value) and float(value) > 0]
+    fig = go.Figure()
+    if clean:
+        names, amounts = zip(*clean)
+        total = sum(amounts)
+        fig.add_trace(go.Pie(
+            labels=list(names), values=list(amounts), hole=0.66, sort=False,
+            marker={"colors": PALETTE, "line": {"color": "white", "width": 3}},
+            textinfo="percent", textposition="inside", insidetextfont={"color": "white", "size": 12},
+            hovertemplate="<b>%{label}</b><br>R$ %{value:,.2f}<br>%{percent}<extra></extra>",
+            showlegend=True,
+        ))
+        fig.add_annotation(x=0.5, y=0.5, text=f"<b>R$ {total:,.0f}</b><br><span style='font-size:11px;color:#8792a5'>total</span>", showarrow=False, font={"size": 16, "color": "#172033"})
     else:
-        theta = np.r_[0, np.cumsum(vals / vals.sum() * 2 * np.pi)]
-        radius, height = 1.0, .14
-        for i, (start, end) in enumerate(zip(theta[:-1], theta[1:])):
-            angles = np.linspace(start, end, max(16, int((end-start)*30)))
-            top = [(radius*np.cos(a), radius*np.sin(a), height) for a in angles]
-            bottom = [(x, y, 0) for x, y, _ in top]
-            side1 = [(radius*np.cos(start), radius*np.sin(start), 0), (radius*np.cos(end), radius*np.sin(end), 0), (radius*np.cos(end), radius*np.sin(end), height), (radius*np.cos(start), radius*np.sin(start), height)]
-            faces = [top + [(0, 0, height)], bottom + [(0, 0, 0)], side1]
-            for a, b in zip(angles[:-1], angles[1:]):
-                faces.append([(radius*np.cos(a), radius*np.sin(a), 0), (radius*np.cos(b), radius*np.sin(b), 0), (radius*np.cos(b), radius*np.sin(b), height), (radius*np.cos(a), radius*np.sin(a), height)])
-            ax.add_collection3d(Poly3DCollection(faces, facecolors=PALETTE[i % len(PALETTE)], edgecolors="white", linewidths=.5))
-        ax.set_xlim(-1.3, 1.3); ax.set_ylim(-1.3, 1.3); ax.set_zlim(0, .5)
-        ax.view_init(elev=27, azim=-55); ax.set_axis_off()
-        ax.legend([f"{n} — R$ {v:,.2f}" for n, v in zip(labels, vals)], loc="center left", bbox_to_anchor=(.83, .5), frameon=False, fontsize=8)
-    return _finish(fig, title)
+        fig.add_annotation(x=0.5, y=0.52, text="Sem dados no período", showarrow=False, font={"size": 13, "color": "#8792a5"})
+    fig.update_layout(
+        title={"text": title, "x": 0.015, "xanchor": "left", "font": {"size": 16, "color": "#172033"}},
+        height=360, margin={"l": 12, "r": 12, "t": 56, "b": 54},
+        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+        font={"family": "Inter, Arial, sans-serif", "size": 11, "color": "#526078"},
+        legend={"orientation": "h", "yanchor": "top", "y": -0.12, "xanchor": "left", "x": 0, "font": {"size": 10}},
+        hoverlabel={"bgcolor": "#172033", "font": {"color": "white"}},
+    )
+    return fig
 
 
-def line_chart(frame: pd.DataFrame, title: str):
-    fig, ax = plt.subplots(figsize=(10, 3.2))
-    ax.plot(frame["month_label"], frame["revenue"], marker="o", lw=2, color=BLUE, label="Receitas")
-    ax.plot(frame["month_label"], frame["expenses"], marker="o", lw=2, color=RED, label="Despesas")
-    ax.fill_between(np.arange(len(frame)), frame["revenue"].to_numpy(), alpha=.10, color=BLUE)
-    ax.set_xticks(np.arange(len(frame)), frame["month_label"], fontsize=8)
-    ax.grid(axis="y", alpha=.18); ax.legend(frameon=False, ncol=2, loc="upper left")
-    ax.set_ylabel("R$"); ax.spines[["top", "right"]].set_visible(False)
-    return _finish(fig, title)
+def grouped_bar(labels: Sequence[str], series: Sequence[Sequence[float]], title: str, series_names: Sequence[str], colors: Sequence[str] | None = None, currency: bool = True, horizontal: bool = False) -> go.Figure:
+    colors = list(colors or PALETTE)
+    fig = go.Figure()
+    for index, values in enumerate(series):
+        name = series_names[index] if index < len(series_names) else f"Série {index + 1}"
+        color = colors[index % len(colors)]
+        if horizontal:
+            fig.add_bar(y=list(labels), x=list(values), name=name, orientation="h", marker_color=color, marker_line_width=0, hovertemplate=f"<b>{name}</b><br>%{{y}}<br>" + ("R$ " if currency else "") + "%{x:,.2f}<extra></extra>")
+        else:
+            fig.add_bar(x=list(labels), y=list(values), name=name, marker_color=color, marker_line_width=0, hovertemplate=f"<b>{name}</b><br>%{{x}}<br>" + ("R$ " if currency else "") + "%{y:,.2f}<extra></extra>")
+    fig.update_layout(barmode="group", bargap=0.3, bargroupgap=0.1)
+    if horizontal:
+        fig.update_yaxes(autorange="reversed")
+        fig.update_xaxes(tickprefix="R$ " if currency else "", tickformat="~s" if currency else ",.0f", separatethousands=True)
+        return _layout(fig, title, max(340, 28 * len(labels) + 110))
+    fig.update_yaxes(tickprefix="R$ " if currency else "", tickformat="~s" if currency else ",.0f", separatethousands=True)
+    return _layout(fig, title, 380)
+
+
+def variation_chart(labels: Sequence[str], revenue_change: Sequence[float], expense_change: Sequence[float]) -> go.Figure:
+    fig = go.Figure()
+    fig.add_scatter(x=list(labels), y=list(revenue_change), name="Receitas", mode="lines+markers", connectgaps=False, line={"color": BLUE, "width": 3}, marker={"size": 7}, hovertemplate="<b>Receitas</b><br>%{x}<br>%{y:.1f}%<extra></extra>")
+    fig.add_scatter(x=list(labels), y=list(expense_change), name="Despesas", mode="lines+markers", connectgaps=False, line={"color": RED, "width": 3}, marker={"size": 7}, hovertemplate="<b>Despesas</b><br>%{x}<br>%{y:.1f}%<extra></extra>")
+    fig.add_hline(y=0, line_color="#aeb8c7", line_width=1)
+    fig.update_yaxes(ticksuffix="%", zeroline=False)
+    return _layout(fig, "Variação mensal em relação ao mês anterior", 360)
+
+
+def payment_chart(labels: Sequence[str], series: Sequence[Sequence[float]], names: Sequence[str]) -> go.Figure:
+    fig = go.Figure()
+    for index, (name, values) in enumerate(zip(names, series)):
+        fig.add_bar(x=list(labels), y=list(values), name=str(name), marker_color=PALETTE[index % len(PALETTE)], marker_line_width=0, hovertemplate=f"<b>{name}</b><br>%{{x}}<br>R$ %{{y:,.2f}}<extra></extra>")
+    fig.update_layout(barmode="stack", bargap=0.32)
+    fig.update_yaxes(tickprefix="R$ ", tickformat="~s", separatethousands=True)
+    return _layout(fig, "Valores por forma de pagamento", 380)
+
