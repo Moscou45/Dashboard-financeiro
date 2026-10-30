@@ -27,7 +27,6 @@ def render():
                 + str(deleted["monthly_summary"]) + " resumos mensais e "
                 + str(deleted["product_sales"]) + " vendas de produtos."
             )
-            st.rerun()
 
 
 render()
