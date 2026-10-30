@@ -11,93 +11,158 @@ PAYMENT_ORDER = [
 ]
 
 
-def _series_or_zero(frame: pd.DataFrame, column: str, dates: pd.DatetimeIndex) -> pd.Series:
-    if column not in frame.columns:
-        return pd.Series(0.0, index=dates)
-    return pd.to_numeric(frame[column], errors="coerce").reindex(dates, fill_value=0.0).fillna(0.0)
+def _money_columns(frame: pd.DataFrame) -> dict:
+    return {
+        column: st.column_config.NumberColumn(format="R$ %.2f")
+        for column in frame.columns
+        if column != "Data"
+    }
+
+
+def _expense_section(label: str, expense_type: str, rows: pd.DataFrame, selected_months: list[int]):
+    st.subheader(label)
+    with st.form(f"add_{expense_type.casefold()}_expense", clear_on_submit=True):
+        a, b = st.columns(2)
+        when = a.date_input("Data", value=pd.Timestamp.today().date(), key=f"{expense_type}_date")
+        category = b.text_input("Categoria", placeholder="Ex.: energia, boletos, outros", key=f"{expense_type}_category")
+        amount = a.number_input("Valor (R$)", min_value=0.01, step=10.0, format="%.2f", key=f"{expense_type}_amount")
+        description = b.text_input("Descrição", placeholder="Ex.: fornecedor, detalhe do gasto", key=f"{expense_type}_description")
+        submitted = st.form_submit_button(f"Adicionar despesa {expense_type.casefold()}", type="primary", use_container_width=True)
+    if submitted:
+        if not category.strip():
+            st.error("Informe a categoria da despesa.")
+        else:
+            db.add_transaction(
+                when, "Despesa", category, amount,
+                expense_type=expense_type, description=description,
+            )
+            st.success(f"Despesa {expense_type.casefold()} salva na DFC.")
+            st.rerun()
+
+    visible = rows[rows["date"].dt.month.isin(selected_months)].copy() if not rows.empty else rows.copy()
+    if visible.empty:
+        st.caption("Nenhuma despesa deste tipo no período selecionado.")
+        return
+    visible = visible.rename(columns={
+        "date": "Data", "category": "Categoria", "amount": "Valor",
+        "description": "Descrição",
+    })
+    visible["Descrição"] = visible["Descrição"].fillna("")
+    visible = visible[["Data", "Categoria", "Valor", "Descrição"]].sort_values("Data", ascending=False)
+    st.dataframe(
+        visible, hide_index=True, use_container_width=True,
+        column_config={
+            "Data": st.column_config.DateColumn(format="DD/MM/YYYY"),
+            "Valor": st.column_config.NumberColumn(format="R$ %.2f"),
+        },
+    )
+    export_csv(visible, f"Exportar {label} CSV", f"dfc_{expense_type.casefold()}.csv")
 
 
 def render():
     st.title("DFC")
-    st.caption("Resumo diário das entradas por forma de pagamento e das saídas por classificação.")
+    st.caption("Receitas entram automaticamente pelo cadastro. Despesas são lançadas aqui, separadas por tipo.")
     year = selected_year()
     transactions = period_transactions(year)
-    if transactions.empty:
-        st.info("Ainda não há movimentações. Cadastre receitas e despesas para preencher a DFC.")
-        return
-
     data = transactions.copy()
-    data["day"] = data["date"].dt.normalize()
-    all_days = pd.DatetimeIndex(sorted(data["day"].dropna().unique()), name="Data")
-
-    revenue = data[data["kind"] == "Receita"].copy()
-    revenue["payment_method"] = revenue["payment_method"].fillna("Não informada").replace("", "Não informada")
-    if revenue.empty:
-        by_payment = pd.DataFrame(index=all_days)
+    if not data.empty:
+        data["day"] = data["date"].dt.normalize()
+        all_days = pd.DatetimeIndex(sorted(data["day"].dropna().unique()), name="Data")
     else:
-        by_payment = revenue.pivot_table(
+        all_days = pd.DatetimeIndex([], name="Data")
+
+    daily = pd.DataFrame(index=all_days)
+    revenue = data[data["kind"] == "Receita"].copy() if not data.empty else pd.DataFrame()
+    if not revenue.empty:
+        revenue["payment_method"] = revenue["payment_method"].fillna("Não informada").replace("", "Não informada")
+        pivot = revenue.pivot_table(
             index="day", columns="payment_method", values="amount",
             aggfunc="sum", fill_value=0,
         ).reindex(all_days, fill_value=0)
-
-    expense = data[data["kind"] == "Despesa"].copy()
-    expense["expense_type"] = expense["expense_type"].fillna("Não classificada").replace("", "Não classificada")
-    if expense.empty:
-        by_expense_type = pd.DataFrame(index=all_days)
-        expense_total = pd.Series(0.0, index=all_days)
     else:
-        by_expense_type = expense.pivot_table(
-            index="day", columns="expense_type", values="amount",
-            aggfunc="sum", fill_value=0,
-        ).reindex(all_days, fill_value=0)
-        expense_total = expense.groupby("day")["amount"].sum().reindex(all_days, fill_value=0.0)
+        pivot = pd.DataFrame(index=all_days)
 
-    fixed = _series_or_zero(by_expense_type, "Fixa", all_days)
-    variable = _series_or_zero(by_expense_type, "Variável", all_days)
-    other_expense = expense_total - fixed - variable
-
-    payment_methods = [name for name in PAYMENT_ORDER if name in by_payment.columns]
-    payment_methods.extend(sorted(str(name) for name in by_payment.columns if name not in payment_methods))
-    daily = pd.DataFrame(index=all_days)
-    for method in payment_methods:
-        daily[method] = _series_or_zero(by_payment, method, all_days)
-    daily["Entradas"] = daily[payment_methods].sum(axis=1) if payment_methods else 0.0
-    daily["Despesas fixas"] = fixed
-    daily["Despesas variáveis"] = variable
-    daily["Outras despesas"] = other_expense
-    daily["Saídas"] = expense_total
-    daily["Saldo do dia"] = daily["Entradas"] - daily["Saídas"]
+    for method in PAYMENT_ORDER:
+        daily[method] = (
+            pd.to_numeric(pivot[method], errors="coerce").fillna(0.0)
+            if method in pivot.columns else 0.0
+        )
+    extra_methods = sorted(str(method) for method in pivot.columns if method not in PAYMENT_ORDER)
+    for method in extra_methods:
+        daily[method] = pd.to_numeric(pivot[method], errors="coerce").fillna(0.0)
+    daily["Entradas"] = daily[PAYMENT_ORDER + extra_methods].sum(axis=1)
     daily.index.name = "Data"
     daily = daily.reset_index()
-    daily["month"] = daily["Data"].dt.month
+    daily["month"] = daily["Data"].dt.month if not daily.empty else pd.Series(dtype="int64")
 
-    filtered = month_range_filter(daily, "dfc_months")
-    if filtered.empty:
-        st.info("Selecione ao menos um mês para ver a DFC.")
-        return
+    filtered_daily = month_range_filter(daily, "dfc_months")
+    selected_months = [MONTHS.index(month) + 1 for month in MONTHS
+                       if month in st.session_state.get("dfc_months", MONTHS)]
 
-    totals = filtered[["Entradas", "Saídas", "Saldo do dia"]].sum()
-    cols = st.columns(3)
-    cols[0].metric("Entradas no período", brl(totals["Entradas"]))
-    cols[1].metric("Saídas no período", brl(totals["Saídas"]))
-    cols[2].metric("Saldo líquido do período", brl(totals["Saldo do dia"]))
-    st.caption("Saldo do dia = entradas do dia menos saídas do dia. Ele não inclui saldo inicial nem acumula os dias anteriores.")
+    expense_rows = data[data["kind"] == "Despesa"].copy() if not data.empty else pd.DataFrame(
+        columns=["date", "category", "amount", "expense_type", "description"]
+    )
+    expense_rows["expense_type"] = expense_rows["expense_type"].fillna("").replace("", "Sem classificação")
+    fixed = expense_rows[expense_rows["expense_type"].astype(str).str.casefold().str.startswith("fix")].copy()
+    variable = expense_rows[expense_rows["expense_type"].astype(str).str.casefold().str.startswith("vari")].copy()
+    other = expense_rows[~expense_rows.index.isin(fixed.index) & ~expense_rows.index.isin(variable.index)].copy()
 
-    visible = filtered.drop(columns=["month"]).copy()
-    money_columns = [column for column in visible.columns if column != "Data"]
-    config = {column: st.column_config.NumberColumn(format="R$ %.2f") for column in money_columns}
-    st.dataframe(visible, hide_index=True, use_container_width=True, column_config=config)
-    export_csv(visible, "Exportar DFC CSV", "dfc_" + str(year) + ".csv")
+    filtered_expenses = expense_rows[expense_rows["date"].dt.month.isin(selected_months)] if not expense_rows.empty else expense_rows
+    in_total = float(filtered_daily["Entradas"].sum()) if not filtered_daily.empty else 0.0
+    out_total = float(filtered_expenses["amount"].sum()) if not filtered_expenses.empty else 0.0
+    metrics = st.columns(3)
+    metrics[0].metric("Entradas no período", brl(in_total))
+    metrics[1].metric("Saídas no período", brl(out_total))
+    metrics[2].metric("Saldo líquido do período", brl(in_total - out_total))
+    st.caption("Saldo líquido = entradas menos saídas. O saldo diário não inclui saldo inicial nem acumula os dias anteriores.")
 
-    with st.expander("Lançamentos que compõem a DFC"):
-        details = transactions[transactions["date"].dt.month.isin(filtered["month"])].copy()
-        details = details[["date", "kind", "category", "expense_type", "payment_method", "amount"]]
-        details = details.rename(columns={
-            "date": "Data", "kind": "Tipo", "category": "Categoria",
-            "expense_type": "Classificação", "payment_method": "Forma de pagamento",
-            "amount": "Valor",
-        })
-        st.dataframe(details, hide_index=True, use_container_width=True, column_config={"Valor": st.column_config.NumberColumn(format="R$ %.2f")})
+    receipts = filtered_daily.drop(columns=["month"], errors="ignore").copy()
+    if receipts.empty:
+        receipts = pd.DataFrame(columns=["Data", *PAYMENT_ORDER, "Entradas"])
+        st.info("Nenhuma receita no período selecionado. Cadastre novas receitas em “Cadastrar dados”.")
+    st.subheader("Receitas por dia")
+    st.dataframe(
+        receipts, hide_index=True, use_container_width=True,
+        column_config={"Data": st.column_config.DateColumn(format="DD/MM/YYYY"), **_money_columns(receipts)},
+    )
+    export_csv(receipts, "Exportar receitas CSV", f"dfc_receitas_{year}.csv")
+
+    if not other.empty:
+        with st.expander("Despesas antigas sem classificação fixa ou variável"):
+            visible = other[other["date"].dt.month.isin(selected_months)].copy()
+            if not visible.empty:
+                visible = visible.rename(columns={"date": "Data", "category": "Categoria", "amount": "Valor", "description": "Descrição"})
+                visible["Descrição"] = visible["Descrição"].fillna("")
+                visible = visible[["Data", "Categoria", "Valor", "Descrição"]].sort_values("Data", ascending=False)
+                st.dataframe(visible, hide_index=True, use_container_width=True, column_config={
+                    "Data": st.column_config.DateColumn(format="DD/MM/YYYY"),
+                    "Valor": st.column_config.NumberColumn(format="R$ %.2f"),
+                })
+            else:
+                st.caption("Nenhuma despesa sem classificação neste período.")
+
+    _expense_section("Despesas fixas", "Fixa", fixed, selected_months)
+    _expense_section("Despesas variáveis", "Variável", variable, selected_months)
+
+    daily_summary = pd.DataFrame(index=all_days)
+    daily_summary["Entradas"] = daily["Entradas"].to_numpy() if not daily.empty else []
+    daily_summary["Saídas"] = 0.0
+    if not expense_rows.empty:
+        expense_by_day = expense_rows.assign(day=expense_rows["date"].dt.normalize()).groupby("day")["amount"].sum()
+        daily_summary["Saídas"] = expense_by_day.reindex(all_days, fill_value=0.0)
+    daily_summary["Saldo do dia"] = daily_summary["Entradas"] - daily_summary["Saídas"]
+    daily_summary.index.name = "Data"
+    daily_summary = daily_summary.reset_index()
+    daily_summary["month"] = daily_summary["Data"].dt.month
+    selected_daily = daily_summary[daily_summary["month"].isin(selected_months)]
+    if not selected_daily.empty:
+        with st.expander("Resumo diário de entradas, saídas e saldo"):
+            visible = selected_daily.drop(columns=["month"])
+            st.dataframe(visible, hide_index=True, use_container_width=True, column_config={
+                "Data": st.column_config.DateColumn(format="DD/MM/YYYY"),
+                **_money_columns(visible),
+            })
+            export_csv(visible, "Exportar resumo diário CSV", f"dfc_resumo_diario_{year}.csv")
 
 
 render()

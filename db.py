@@ -91,6 +91,7 @@ def initialize() -> None:
                 amount NUMERIC(14, 2) NOT NULL,
                 payment_method TEXT,
                 expense_type TEXT,
+                description TEXT,
                 origin TEXT NOT NULL,
                 dedupe_key TEXT UNIQUE
             )
@@ -119,6 +120,15 @@ def initialize() -> None:
                 PRIMARY KEY (year, month)
             )
         """))
+        if engine.dialect.name == "sqlite":
+            columns = {row[1] for row in con.exec_driver_sql("PRAGMA table_info(transactions)")}
+        else:
+            columns = {row[0] for row in con.execute(text("""
+                SELECT column_name FROM information_schema.columns
+                WHERE table_schema = current_schema() AND table_name = 'transactions'
+            """))}
+        if "description" not in columns:
+            con.execute(text("ALTER TABLE transactions ADD COLUMN description TEXT"))
         con.execute(text("CREATE INDEX IF NOT EXISTS idx_transactions_date ON transactions(date)"))
         con.execute(text("CREATE INDEX IF NOT EXISTS idx_product_sales_period ON product_sales(year, month_num)"))
 
@@ -248,14 +258,16 @@ def seed_remote_data() -> bool:
 
 def add_transaction(when: date, kind: str, category: str, amount: float,
                     payment_method: str | None = None, expense_type: str | None = None,
-                    origin: str = "manual", dedupe_key: str | None = None) -> bool:
+                    origin: str = "manual", dedupe_key: str | None = None,
+                    description: str | None = None) -> bool:
     with engine.begin() as con:
         result = con.execute(text("""INSERT INTO transactions
-            (date, kind, category, amount, payment_method, expense_type, origin, dedupe_key)
-            VALUES (:date, :kind, :category, :amount, :payment_method, :expense_type, :origin, :dedupe_key)
+            (date, kind, category, amount, payment_method, expense_type, description, origin, dedupe_key)
+            VALUES (:date, :kind, :category, :amount, :payment_method, :expense_type, :description, :origin, :dedupe_key)
             ON CONFLICT DO NOTHING"""),
             {"date": when.isoformat(), "kind": kind, "category": category.strip() or kind, "amount": _amount(amount),
-             "payment_method": payment_method, "expense_type": _normalize_expense_type(expense_type), "origin": origin, "dedupe_key": dedupe_key})
+             "payment_method": payment_method, "expense_type": _normalize_expense_type(expense_type),
+             "description": (description or "").strip() or None, "origin": origin, "dedupe_key": dedupe_key})
         return result.rowcount > 0
 
 
@@ -286,7 +298,7 @@ def clear_all_data() -> dict[str, int]:
 
 def get_transactions() -> pd.DataFrame:
     with engine.connect() as con:
-        df = pd.read_sql_query(text("""SELECT id, date, kind, category, amount, payment_method, expense_type, origin
+        df = pd.read_sql_query(text("""SELECT id, date, kind, category, amount, payment_method, expense_type, description, origin
             FROM transactions ORDER BY date DESC, id DESC"""), con)
     if "date" in df.columns:
         df["date"] = pd.to_datetime(df["date"], errors="coerce")
