@@ -25,12 +25,14 @@ can_edit = role == "owner"
 
 pages = [
     st.Page("app_pages/dashboard.py", title="Visão financeira", icon="📈", default=True),
+    st.Page("app_pages/dfc.py", title="DFC", icon="💰"),
     st.Page("app_pages/products.py", title="Produtos", icon="📦"),
 ]
 if can_edit:
     pages.extend([
         st.Page("app_pages/entry.py", title="Cadastrar dados", icon="✍️"),
         st.Page("app_pages/import_excel.py", title="Importar planilha", icon="📥"),
+        st.Page("app_pages/reset_data.py", title="Reiniciar dados", icon="🧹"),
     ])
 navigation = st.navigation(pages, position="sidebar")
 navigation.run()

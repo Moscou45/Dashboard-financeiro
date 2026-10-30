@@ -272,6 +272,18 @@ def add_product(year: int, month_num: int | None, month_label: str, product: str
              "profit": _amount(Decimal(str(revenue))-Decimal(str(cost))), "origin": origin, "dedupe_key": dedupe_key})
 
 
+def clear_all_data() -> dict[str, int]:
+    """Delete every financial and product record from the remote app database."""
+    if engine.dialect.name != "postgresql":
+        raise RuntimeError("A limpeza total só está disponível no PostgreSQL remoto.")
+    deleted: dict[str, int] = {}
+    with engine.begin() as con:
+        for table in ("transactions", "monthly_summary", "product_sales"):
+            result = con.execute(text(f"DELETE FROM {table}"))
+            deleted[table] = max(result.rowcount, 0)
+    return deleted
+
+
 def get_transactions() -> pd.DataFrame:
     with engine.connect() as con:
         df = pd.read_sql_query(text("""SELECT id, date, kind, category, amount, payment_method, expense_type, origin

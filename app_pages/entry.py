@@ -7,26 +7,32 @@ from auth import require_editor
 
 def render():
     require_editor()
-    st.title("Cadastro de movimenta��es")
-    st.caption("Os lan�amentos salvos aparecem imediatamente nos indicadores do prot�tipo.")
-    tab_fin, tab_prod = st.tabs(["Movimenta��o financeira", "Venda de produto"])
+    st.title("Cadastrar dados")
+    st.caption("Cadastre cada movimentação uma vez. Receitas e despesas aparecem automaticamente na DFC e nos gráficos.")
+    tab_fin, tab_prod = st.tabs(["Movimentação financeira", "Venda de produto"])
     with tab_fin:
         with st.form("financial_entry", clear_on_submit=True):
             a, b = st.columns(2)
             when = a.date_input("Data", value=date.today())
             kind = b.selectbox("Tipo", ["Receita", "Despesa"])
-            category = a.text_input("Categoria", placeholder="Ex.: Venda, aluguel, pe�as")
+            category = a.text_input("Categoria", placeholder="Ex.: venda, aluguel, peças")
             amount = b.number_input("Valor (R$)", min_value=0.01, step=10.0, format="%.2f")
-            method = a.selectbox("Forma de pagamento", ["N�o informada", "Dinheiro", "Pix", "Cart�o de d�bito", "Cart�o de cr�dito", "Boleto", "Transfer�ncia", "Outro"])
-            expense_type = b.selectbox("Classifica��o da despesa", ["N�o se aplica", "Fixa", "Vari�vel", "N�o classificada"])
-            submitted = st.form_submit_button("Salvar movimenta��o", type="primary", use_container_width=True)
+            method = a.selectbox("Forma de pagamento", ["Selecione", "Dinheiro", "Pix", "Cartão de débito", "Cartão de crédito", "Transferência", "Boleto", "Outro"])
+            expense_type = b.selectbox("Classificação da despesa", ["Não se aplica", "Fixa", "Variável"])
+            submitted = st.form_submit_button("Salvar movimentação", type="primary", use_container_width=True)
         if submitted:
             if not category.strip():
                 st.error("Informe uma categoria para salvar.")
+            elif method == "Selecione":
+                st.error("Selecione a forma de pagamento.")
+            elif kind == "Despesa" and expense_type not in ("Fixa", "Variável"):
+                st.error("Classifique a despesa como fixa ou variável.")
             else:
-                db.add_transaction(when, kind, category, amount, None if method == "N�o informada" else method,
-                                   None if expense_type == "N�o se aplica" else expense_type)
-                st.success("Movimenta��o salva.")
+                db.add_transaction(
+                    when, kind, category, amount, method,
+                    None if kind == "Receita" else expense_type,
+                )
+                st.success("Movimentação salva e refletida na DFC.")
                 st.rerun()
     with tab_prod:
         with st.form("product_entry", clear_on_submit=True):
