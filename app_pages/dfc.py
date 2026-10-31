@@ -6,8 +6,13 @@ from app_pages.common import MONTHS, brl, selected_year, month_range_filter, per
 
 
 PAYMENT_ORDER = [
-    "Dinheiro", "Pix", "Cartão de débito", "Cartão de crédito",
-    "Transferência", "Boleto", "Outro", "Não informada",
+    "Cartão de crédito", "Cartão de débito", "Dinheiro", "Pix", "Transferência",
+]
+FIXED_CATEGORIES = [
+    "COLABORADOR", "ENERGIA", "INTERNET", "PRO-LABORE", "PROGRAMA NEX",
+]
+VARIABLE_CATEGORIES = [
+    "BOLETOS", "COMPRA A VISTA", "FRETE", "IMPOSTO", "LOJA", "OUTROS", "SACOLA",
 ]
 
 
@@ -19,12 +24,12 @@ def _money_columns(frame: pd.DataFrame) -> dict:
     }
 
 
-def _expense_section(label: str, expense_type: str, rows: pd.DataFrame, selected_months: list[int]):
+def _expense_section(label: str, expense_type: str, rows: pd.DataFrame, selected_months: list[int], categories: list[str]):
     st.subheader(label)
     with st.form(f"add_{expense_type.casefold()}_expense", clear_on_submit=True):
         a, b = st.columns(2)
         when = a.date_input("Data", value=pd.Timestamp.today().date(), key=f"{expense_type}_date")
-        category = b.text_input("Categoria", placeholder="Ex.: energia, boletos, outros", key=f"{expense_type}_category")
+        category = b.selectbox("Categoria", categories, index=None, key=f"{expense_type}_category")
         amount = a.number_input("Valor (R$)", min_value=0.01, step=10.0, format="%.2f", key=f"{expense_type}_amount")
         description = b.text_input("Descrição", placeholder="Ex.: fornecedor, detalhe do gasto", key=f"{expense_type}_description")
         submitted = st.form_submit_button(f"Adicionar despesa {expense_type.casefold()}", type="primary", use_container_width=True)
@@ -61,7 +66,7 @@ def _expense_section(label: str, expense_type: str, rows: pd.DataFrame, selected
 
 def render():
     st.title("DFC")
-    st.caption("Receitas entram automaticamente pelo cadastro. Despesas são lançadas aqui, separadas por tipo.")
+    st.caption("Cadastre receitas e despesas nesta página. Cada movimentação aparece na seção correspondente.")
     year = selected_year()
     transactions = period_transactions(year)
     data = transactions.copy()
@@ -87,10 +92,8 @@ def render():
             pd.to_numeric(pivot[method], errors="coerce").fillna(0.0)
             if method in pivot.columns else 0.0
         )
-    extra_methods = sorted(str(method) for method in pivot.columns if method not in PAYMENT_ORDER)
-    for method in extra_methods:
-        daily[method] = pd.to_numeric(pivot[method], errors="coerce").fillna(0.0)
-    daily["Entradas"] = daily[PAYMENT_ORDER + extra_methods].sum(axis=1)
+    # Preserve the total of older receipts even when their method is no longer offered.
+    daily["Entradas"] = pivot.sum(axis=1).reindex(all_days, fill_value=0.0)
     daily.index.name = "Data"
     daily = daily.reset_index()
     daily["month"] = daily["Data"].dt.month if not daily.empty else pd.Series(dtype="int64")
@@ -110,16 +113,33 @@ def render():
     filtered_expenses = expense_rows[expense_rows["date"].dt.month.isin(selected_months)] if not expense_rows.empty else expense_rows
     in_total = float(filtered_daily["Entradas"].sum()) if not filtered_daily.empty else 0.0
     out_total = float(filtered_expenses["amount"].sum()) if not filtered_expenses.empty else 0.0
+    st.subheader("Lançar receita")
+    with st.form("add_revenue", clear_on_submit=True):
+        a, b = st.columns(2)
+        when = a.date_input("Data", value=pd.Timestamp.today().date(), key="revenue_date")
+        category = b.text_input("Categoria", placeholder="Ex.: vendas, serviços", key="revenue_category")
+        amount = a.number_input("Valor (R$)", min_value=0.01, step=10.0, format="%.2f", key="revenue_amount")
+        method = b.selectbox("Forma de pagamento", PAYMENT_ORDER, key="revenue_payment_method")
+        submitted = st.form_submit_button("Adicionar receita", type="primary", use_container_width=True)
+    if submitted:
+        if not category.strip():
+            st.error("Informe uma categoria para a receita.")
+        else:
+            db.add_transaction(when, "Receita", category, amount, method)
+            st.success("Receita salva na DFC.")
+            st.rerun()
+
     metrics = st.columns(3)
     metrics[0].metric("Entradas no período", brl(in_total))
     metrics[1].metric("Saídas no período", brl(out_total))
     metrics[2].metric("Saldo líquido do período", brl(in_total - out_total))
     st.caption("Saldo líquido = entradas menos saídas. O saldo diário não inclui saldo inicial nem acumula os dias anteriores.")
 
-    receipts = filtered_daily.drop(columns=["month"], errors="ignore").copy()
+    receipts = filtered_daily[["Data", *PAYMENT_ORDER, "Entradas"]].copy()
+    receipts = receipts[receipts["Entradas"] != 0]
     if receipts.empty:
         receipts = pd.DataFrame(columns=["Data", *PAYMENT_ORDER, "Entradas"])
-        st.info("Nenhuma receita no período selecionado. Cadastre novas receitas em “Cadastrar dados”.")
+        st.info("Nenhuma receita no período selecionado. Use o formulário acima para lançar uma receita.")
     st.subheader("Receitas por dia")
     st.dataframe(
         receipts, hide_index=True, use_container_width=True,
@@ -141,8 +161,8 @@ def render():
             else:
                 st.caption("Nenhuma despesa sem classificação neste período.")
 
-    _expense_section("Despesas fixas", "Fixa", fixed, selected_months)
-    _expense_section("Despesas variáveis", "Variável", variable, selected_months)
+    _expense_section("Despesas fixas", "Fixa", fixed, selected_months, FIXED_CATEGORIES)
+    _expense_section("Despesas variáveis", "Variável", variable, selected_months, VARIABLE_CATEGORIES)
 
     daily_summary = pd.DataFrame(index=all_days)
     daily_summary["Entradas"] = daily["Entradas"].to_numpy() if not daily.empty else []
