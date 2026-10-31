@@ -3,8 +3,8 @@ import pandas as pd
 import streamlit as st
 
 import db
-from app_pages.common import MONTHS, brl, selected_year, period_transactions, export_csv
-from charts import CHART_CONFIG, grouped_bar, pie_chart
+from app_pages.common import MONTHS, brl, selected_year, period_transactions, export_csv, warning_reconciliation
+from charts import CHART_CONFIG, grouped_bar, pie_chart, expense_variation_chart
 
 
 FIXED_ORDER = ["COLABORADOR", "PRO-LABORE", "ENERGIA", "INTERNET", "PROGRAMA NEX"]
@@ -74,6 +74,40 @@ def _comparison_chart(expenses: pd.DataFrame, expense_type: str, base_categories
         )
 
 
+def _variation_chart(expenses: pd.DataFrame, expense_type: str, base_categories: list[str], key: str):
+    subset = expenses[expenses["expense_type"].str.casefold() == expense_type.casefold()].copy()
+    present = set(subset["category_key"].unique()) if not subset.empty else set()
+    categories = [name for name in base_categories if name in present or not present]
+    categories.extend(sorted(present - set(categories)))
+    if not categories:
+        categories = base_categories.copy()
+
+    filter_col, chart_col = st.columns([1, 4])
+    with filter_col:
+        category = st.selectbox(
+            "Categoria", categories, key=f"{key}_category_filter"
+        )
+    category_rows = subset[subset["category_key"] == category]
+    monthly_totals = (
+        category_rows.groupby("month")["amount"].sum().reindex(range(1, 13), fill_value=0.0)
+        if not category_rows.empty else pd.Series(0.0, index=range(1, 13))
+    )
+    changes: list[float | None] = [None]
+    for month in range(2, 13):
+        previous = float(monthly_totals.loc[month - 1])
+        current = float(monthly_totals.loc[month])
+        changes.append((current / previous - 1) * 100 if previous > 0 else None)
+    with chart_col:
+        _show_chart(
+            expense_variation_chart(
+                MONTHS, changes,
+                f"Variação mensal de {category.title()}",
+            ),
+            f"Variação percentual mensal da despesa {category.title()}",
+            key,
+        )
+
+
 def _monthly_expense_table(month: int, revenue: float, expenses: pd.DataFrame, categories: list[str]) -> pd.DataFrame:
     month_rows = expenses[expenses["month"] == month] if not expenses.empty else expenses
     totals = month_rows.groupby("category_key")["amount"].sum().to_dict() if not month_rows.empty else {}
@@ -106,9 +140,10 @@ def render():
     annual_expenses = float(monthly["expenses"].sum())
     annual_balance = annual_revenue - annual_expenses
 
-    daily_tab, comparison_tab, annual_tab, percentage_tab = st.tabs([
-        "Diária e semanal", "Comparadores de despesas", "Totais anuais",
-        "Despesas / faturamento",
+    warning_reconciliation(year, transactions)
+    daily_tab, comparison_tab, variation_tab, annual_tab, percentage_tab = st.tabs([
+        "Diária e semanal", "Comparadores de despesas", "Variação das despesas",
+        "Totais anuais", "Despesas / faturamento",
     ])
 
     with daily_tab:
@@ -179,6 +214,16 @@ def render():
             expenses, "Fixa", FIXED_ORDER,
             "Comparador de despesas fixas", "fixed_expense_comparison",
         )
+
+    with variation_tab:
+        st.caption("A variação compara cada mês com o mês anterior: (valor do mês ÷ valor do mês anterior) − 1. Se o mês anterior não tiver despesa, o resultado fica indisponível.")
+        left, right = st.columns(2)
+        with left:
+            st.subheader("Despesas variáveis")
+            _variation_chart(expenses, "Variável", VARIABLE_ORDER, "variable_expense_variation")
+        with right:
+            st.subheader("Despesas fixas")
+            _variation_chart(expenses, "Fixa", FIXED_ORDER, "fixed_expense_variation")
 
     with annual_tab:
         cards = st.columns(3)

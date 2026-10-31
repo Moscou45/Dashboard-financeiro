@@ -138,3 +138,16 @@ def pie_chart(labels: Sequence[str], values: Sequence[float], title: str) -> go.
         hoverlabel={"bgcolor": "#172033", "font": {"color": "white"}},
     )
     return fig
+
+
+def expense_variation_chart(labels: Sequence[str], values: Sequence[float | None], title: str) -> go.Figure:
+    fig = go.Figure()
+    fig.add_scatter(
+        x=list(labels), y=list(values), name="Variação",
+        mode="lines+markers", connectgaps=False,
+        line={"color": BLUE, "width": 3}, marker={"size": 7},
+        hovertemplate="<b>%{x}</b><br>%{y:.2f}%<extra></extra>",
+    )
+    fig.add_hline(y=0, line_color="#aeb8c7", line_width=1)
+    fig.update_yaxes(ticksuffix="%", zeroline=False)
+    return _layout(fig, title, 380)
