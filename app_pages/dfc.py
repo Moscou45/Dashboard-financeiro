@@ -113,22 +113,6 @@ def render():
     filtered_expenses = expense_rows[expense_rows["date"].dt.month.isin(selected_months)] if not expense_rows.empty else expense_rows
     in_total = float(filtered_daily["Entradas"].sum()) if not filtered_daily.empty else 0.0
     out_total = float(filtered_expenses["amount"].sum()) if not filtered_expenses.empty else 0.0
-    st.subheader("Lançar receita")
-    with st.form("add_revenue", clear_on_submit=True):
-        a, b = st.columns(2)
-        when = a.date_input("Data", value=pd.Timestamp.today().date(), key="revenue_date")
-        category = b.text_input("Categoria", placeholder="Ex.: vendas, serviços", key="revenue_category")
-        amount = a.number_input("Valor (R$)", min_value=0.01, step=10.0, format="%.2f", key="revenue_amount")
-        method = b.selectbox("Forma de pagamento", PAYMENT_ORDER, key="revenue_payment_method")
-        submitted = st.form_submit_button("Adicionar receita", type="primary", use_container_width=True)
-    if submitted:
-        if not category.strip():
-            st.error("Informe uma categoria para a receita.")
-        else:
-            db.add_transaction(when, "Receita", category, amount, method)
-            st.success("Receita salva na DFC.")
-            st.rerun()
-
     metrics = st.columns(3)
     metrics[0].metric("Entradas no período", brl(in_total))
     metrics[1].metric("Saídas no período", brl(out_total))
@@ -139,13 +123,31 @@ def render():
     receipts = receipts[receipts["Entradas"] != 0]
     if receipts.empty:
         receipts = pd.DataFrame(columns=["Data", *PAYMENT_ORDER, "Entradas"])
-        st.info("Nenhuma receita no período selecionado. Use o formulário acima para lançar uma receita.")
-    st.subheader("Receitas por dia")
-    st.dataframe(
-        receipts, hide_index=True, use_container_width=True,
-        column_config={"Data": st.column_config.DateColumn(format="DD/MM/YYYY"), **_money_columns(receipts)},
-    )
-    export_csv(receipts, "Exportar receitas CSV", f"dfc_receitas_{year}.csv")
+
+    with st.container(border=True):
+        st.subheader("Receitas")
+        with st.form("add_revenue", clear_on_submit=True):
+            a, b = st.columns(2)
+            when = a.date_input("Data", value=pd.Timestamp.today().date(), key="revenue_date")
+            category = b.text_input("Categoria", placeholder="Ex.: vendas, serviços", key="revenue_category")
+            amount = a.number_input("Valor (R$)", min_value=0.01, step=10.0, format="%.2f", key="revenue_amount")
+            method = b.selectbox("Forma de pagamento", PAYMENT_ORDER, key="revenue_payment_method")
+            submitted = st.form_submit_button("Adicionar receita", type="primary", use_container_width=True)
+        if submitted:
+            if not category.strip():
+                st.error("Informe uma categoria para a receita.")
+            else:
+                db.add_transaction(when, "Receita", category, amount, method)
+                st.success("Receita salva na DFC.")
+                st.rerun()
+
+        st.dataframe(
+            receipts, hide_index=True, use_container_width=True,
+            column_config={"Data": st.column_config.DateColumn(format="DD/MM/YYYY"), **_money_columns(receipts)},
+        )
+        if receipts.empty:
+            st.caption("Nenhuma receita no período selecionado. Use o formulário acima para lançar uma receita.")
+        export_csv(receipts, "Exportar receitas CSV", f"dfc_receitas_{year}.csv")
 
     if not other.empty:
         with st.expander("Despesas antigas sem classificação fixa ou variável"):
