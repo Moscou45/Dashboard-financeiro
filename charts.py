@@ -110,3 +110,31 @@ def payment_chart(labels: Sequence[str], series: Sequence[Sequence[float]], name
     fig.update_yaxes(tickprefix="R$ ", tickformat="~s", separatethousands=True)
     return _layout(fig, "Valores por forma de pagamento", 380)
 
+
+
+def pie_chart(labels: Sequence[str], values: Sequence[float], title: str) -> go.Figure:
+    clean = [(str(label), float(value)) for label, value in zip(labels, values)
+             if np.isfinite(value) and float(value) > 0]
+    fig = go.Figure()
+    if clean:
+        names, amounts = zip(*clean)
+        fig.add_trace(go.Pie(
+            labels=list(names), values=list(amounts), sort=False,
+            marker={"colors": PALETTE, "line": {"color": "white", "width": 2}},
+            textinfo="label+percent", textposition="outside",
+            hovertemplate="<b>%{label}</b><br>R$ %{value:,.2f}<br>%{percent}<extra></extra>",
+        ))
+    else:
+        fig.add_annotation(x=0.5, y=0.5, text="Sem despesas detalhadas no ano",
+                           showarrow=False, font={"size": 13, "color": "#8792a5"})
+    fig.update_layout(
+        title={"text": title, "x": 0.015, "xanchor": "left",
+               "font": {"size": 16, "color": "#172033"}},
+        height=420, margin={"l": 24, "r": 24, "t": 56, "b": 24},
+        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+        font={"family": "Inter, Arial, sans-serif", "size": 11, "color": "#526078"},
+        legend={"orientation": "h", "yanchor": "top", "y": -0.05,
+                "xanchor": "left", "x": 0, "font": {"size": 10}},
+        hoverlabel={"bgcolor": "#172033", "font": {"color": "white"}},
+    )
+    return fig

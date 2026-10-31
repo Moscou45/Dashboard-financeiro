@@ -27,6 +27,7 @@ pages = [
     st.Page("app_pages/dashboard.py", title="Visão financeira", icon="📈", default=True),
     st.Page("app_pages/dfc.py", title="DFC", icon="💰"),
     st.Page("app_pages/products.py", title="Produtos", icon="📦"),
+    st.Page("app_pages/analysis.py", title="Análises da DFC", icon="📊"),
 ]
 if can_edit:
     pages.extend([
