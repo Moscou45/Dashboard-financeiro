@@ -90,7 +90,11 @@ def grouped_bar(labels: Sequence[str], series: Sequence[Sequence[float]], title:
         fig.update_xaxes(tickprefix="R$ " if currency else "", tickformat="~s" if currency else ",.0f", separatethousands=True)
         return _layout(fig, title, max(340, 28 * len(labels) + 110))
     fig.update_yaxes(tickprefix="R$ " if currency else "", tickformat="~s" if currency else ",.0f", separatethousands=True)
-    return _layout(fig, title, 380)
+    fig = _layout(fig, title, 380)
+    if len(labels) > 12:
+        fig.update_xaxes(tickangle=-45)
+        fig.update_layout(margin={"l": 18, "r": 18, "t": 62, "b": 72})
+    return fig
 
 
 def variation_chart(labels: Sequence[str], revenue_change: Sequence[float], expense_change: Sequence[float]) -> go.Figure:
