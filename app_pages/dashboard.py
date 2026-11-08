@@ -70,7 +70,7 @@ def render():
         "monthly_variation",
     )
 
-    pay = transactions[transactions.payment_method.notna() & (transactions.payment_method != "")].copy()
+    pay = transactions[(transactions.kind == "Receita") & transactions.payment_method.notna() & (transactions.payment_method != "")].copy()
     if pay.empty:
         st.info("Não há formas de pagamento classificadas nos lançamentos selecionados.")
     else:
