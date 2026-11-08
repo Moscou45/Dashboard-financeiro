@@ -31,7 +31,7 @@ pages = [
 ]
 if can_edit:
     pages.extend([
-        st.Page("app_pages/entry.py", title="Cadastrar produtos", icon="📦"),
+    
         st.Page("app_pages/import_excel.py", title="Importar planilha", icon="📥"),
         st.Page("app_pages/reset_data.py", title="Reiniciar dados", icon="🧹"),
     ])
