@@ -103,6 +103,7 @@ def render():
         category_col = a.selectbox("Categoria", ["�"]+cols, key="tx_category")
         payment_col = b.selectbox("Forma de pagamento", ["�"]+cols, key="tx_payment")
         expense_col = c.selectbox("Classifica��o Fixa/Vari�vel", ["�"]+cols, key="tx_expense")
+        description_col = st.selectbox("Descri\u00e7\u00e3o", ["\u2014"]+cols, key="tx_description")
         if st.button("Validar importa��o", type="primary"):
             rows=[]; errors=[]
             for idx, raw in df.iterrows():
@@ -114,8 +115,9 @@ def render():
                     row={"date":_date(raw[date_col]), "kind":kind, "amount":abs(_number(raw[amount_col])),
                          "category":str(raw[category_col]).strip() if category_col!="�" and pd.notna(raw[category_col]) else kind,
                          "payment_method":str(raw[payment_col]).strip() if payment_col!="�" and pd.notna(raw[payment_col]) else None,
-                         "expense_type":str(raw[expense_col]).strip().capitalize() if expense_col!="�" and pd.notna(raw[expense_col]) else None}
-                    row["dedupe_key"]=_dedupe("finance", row)
+                         "expense_type":str(raw[expense_col]).strip().capitalize() if expense_col!="�" and pd.notna(raw[expense_col]) else None,
+                         "description":str(raw[description_col]).strip() if description_col!="\u2014" and pd.notna(raw[description_col]) else None}
+                    row["dedupe_key"]=_dedupe("finance", {**row, "source_row": idx+int(header_row)})
                     rows.append(row)
                 except Exception as exc: errors.append(f"Linha {idx+int(header_row)+1}: {exc}")
             st.session_state["pending_import"]={"kind":"finance", "rows":rows, "errors":errors}

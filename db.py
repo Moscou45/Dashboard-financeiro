@@ -344,13 +344,14 @@ def import_financial_rows(rows: list[dict[str, Any]]) -> tuple[int, int]:
     with engine.begin() as con:
         for row in rows:
             result = con.execute(text("""INSERT INTO transactions
-                (date, kind, category, amount, payment_method, expense_type, origin, dedupe_key)
-                VALUES (:date, :kind, :category, :amount, :payment_method, :expense_type, 'imported', :dedupe_key)
+                (date, kind, category, amount, payment_method, expense_type, description, origin, dedupe_key)
+                VALUES (:date, :kind, :category, :amount, :payment_method, :expense_type, :description, 'imported', :dedupe_key)
                 ON CONFLICT DO NOTHING"""),
-                {**{k: row.get(k) for k in ("date", "kind", "category", "payment_method", "expense_type", "dedupe_key")}, "amount": _amount(row["amount"]), "expense_type": _normalize_expense_type(row.get("expense_type"))})
+                {**{k: row.get(k) for k in ("date", "kind", "category", "payment_method", "expense_type", "dedupe_key")},
+                 "amount": _amount(row["amount"]), "expense_type": _normalize_expense_type(row.get("expense_type")),
+                 "description": (row.get("description") or "").strip() or None})
             inserted += max(result.rowcount, 0); skipped += 1 - max(result.rowcount, 0)
     return inserted, skipped
-
 
 def import_product_rows(rows: list[dict[str, Any]]) -> tuple[int, int]:
     inserted = skipped = 0
