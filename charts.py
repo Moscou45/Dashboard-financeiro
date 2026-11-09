@@ -4,6 +4,7 @@ from collections.abc import Sequence
 
 import numpy as np
 import plotly.graph_objects as go
+import streamlit as st
 
 BLUE = "#4f63f5"
 TEAL = "#20b486"
@@ -15,21 +16,31 @@ PALETTE = [BLUE, TEAL, GOLD, RED, PURPLE, SKY, "#8b9bb4", "#d26ca5"]
 CHART_CONFIG = {"displayModeBar": "hover", "displaylogo": False, "responsive": True}
 
 
+def _theme_colors() -> tuple[bool, str, str, str, str]:
+    dark = bool(st.session_state.get("app_dark_mode", False))
+    title = "#f8fafc" if dark else "#172033"
+    text = "#d5deea" if dark else "#526078"
+    grid = "#2a3950" if dark else "#edf1f6"
+    axis = "#33445c" if dark else "#e8edf4"
+    return dark, title, text, grid, axis
+
+
 def _layout(fig: go.Figure, title: str, height: int = 380) -> go.Figure:
+    dark, title_color, text_color, grid_color, axis_color = _theme_colors()
     fig.update_layout(
-        title={"text": title, "x": 0.015, "xanchor": "left", "font": {"size": 16, "color": "#172033"}},
-        template="plotly_white",
+        title={"text": title, "x": 0.015, "xanchor": "left", "font": {"size": 16, "color": title_color}},
+        template="plotly_dark" if dark else "plotly_white",
         height=height,
         margin={"l": 18, "r": 18, "t": 62, "b": 28},
-        font={"family": "Inter, Arial, sans-serif", "size": 12, "color": "#526078"},
+        font={"family": "Inter, Arial, sans-serif", "size": 12, "color": text_color},
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)",
         hoverlabel={"bgcolor": "#172033", "font": {"color": "white", "size": 12}, "bordercolor": "#172033"},
         legend={"orientation": "h", "yanchor": "bottom", "y": 1.02, "x": 0, "xanchor": "left", "title_text": ""},
         hovermode="x unified",
     )
-    fig.update_xaxes(showgrid=False, zeroline=False, linecolor="#e8edf4", tickfont={"color": "#68758b"})
-    fig.update_yaxes(showgrid=True, gridcolor="#edf1f6", zeroline=False, linecolor="rgba(0,0,0,0)", tickfont={"color": "#68758b"})
+    fig.update_xaxes(showgrid=False, zeroline=False, linecolor=axis_color, tickfont={"color": text_color})
+    fig.update_yaxes(showgrid=True, gridcolor=grid_color, zeroline=False, linecolor="rgba(0,0,0,0)", tickfont={"color": text_color})
     return fig
 
 
@@ -60,14 +71,16 @@ def donut_chart(labels: Sequence[str], values: Sequence[float], title: str) -> g
             hovertemplate="<b>%{label}</b><br>R$ %{value:,.2f}<br>%{percent}<extra></extra>",
             showlegend=True,
         ))
-        fig.add_annotation(x=0.5, y=0.5, text=f"<b>R$ {total:,.0f}</b><br><span style='font-size:11px;color:#8792a5'>total</span>", showarrow=False, font={"size": 16, "color": "#172033"})
+        fig.add_annotation(x=0.5, y=0.5, text=f"<b>R$ {total:,.0f}</b><br><span style='font-size:11px;color:#8792a5'>total</span>", showarrow=False, font={"size": 16, "color": _theme_colors()[1]})
     else:
-        fig.add_annotation(x=0.5, y=0.52, text="Sem dados no período", showarrow=False, font={"size": 13, "color": "#8792a5"})
+        fig.add_annotation(x=0.5, y=0.52, text="Sem dados no período", showarrow=False, font={"size": 13, "color": _theme_colors()[2]})
+    dark, title_color, text_color, _, _ = _theme_colors()
     fig.update_layout(
-        title={"text": title, "x": 0.015, "xanchor": "left", "font": {"size": 16, "color": "#172033"}},
+        title={"text": title, "x": 0.015, "xanchor": "left", "font": {"size": 16, "color": title_color}},
+        template="plotly_dark" if dark else "plotly_white",
         height=360, margin={"l": 12, "r": 12, "t": 56, "b": 54},
         paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
-        font={"family": "Inter, Arial, sans-serif", "size": 11, "color": "#526078"},
+        font={"family": "Inter, Arial, sans-serif", "size": 11, "color": text_color},
         legend={"orientation": "h", "yanchor": "top", "y": -0.12, "xanchor": "left", "x": 0, "font": {"size": 10}},
         hoverlabel={"bgcolor": "#172033", "font": {"color": "white"}},
     )
@@ -130,13 +143,15 @@ def pie_chart(labels: Sequence[str], values: Sequence[float], title: str) -> go.
         ))
     else:
         fig.add_annotation(x=0.5, y=0.5, text="Sem despesas detalhadas no ano",
-                           showarrow=False, font={"size": 13, "color": "#8792a5"})
+                           showarrow=False, font={"size": 13, "color": _theme_colors()[2]})
+    dark, title_color, text_color, _, _ = _theme_colors()
     fig.update_layout(
         title={"text": title, "x": 0.015, "xanchor": "left",
-               "font": {"size": 16, "color": "#172033"}},
+               "font": {"size": 16, "color": title_color}},
+        template="plotly_dark" if dark else "plotly_white",
         height=420, margin={"l": 24, "r": 24, "t": 56, "b": 24},
         paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
-        font={"family": "Inter, Arial, sans-serif", "size": 11, "color": "#526078"},
+        font={"family": "Inter, Arial, sans-serif", "size": 11, "color": text_color},
         legend={"orientation": "h", "yanchor": "top", "y": -0.05,
                 "xanchor": "left", "x": 0, "font": {"size": 10}},
         hoverlabel={"bgcolor": "#172033", "font": {"color": "white"}},
