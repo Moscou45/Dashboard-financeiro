@@ -9,21 +9,41 @@ st.session_state["app_role"] = role
 db.initialize()
 db.seed_initial_data()
 
-st.markdown("""
+theme = {
+    "mode": "dark" if dark_mode else "light",
+    "page": "#0b1220" if dark_mode else "#f7f9fc",
+    "text": "#e5eaf2" if dark_mode else "#243147",
+    "header": "rgba(11,18,32,.96)" if dark_mode else "rgba(247,249,252,.96)",
+    "sidebar": "#111a2b" if dark_mode else "#ffffff",
+    "border": "#29384f" if dark_mode else "#e8edf5",
+    "card": "#121d30" if dark_mode else "#ffffff",
+    "heading": "#f8fafc" if dark_mode else "#243147",
+    "muted": "#c5cfdd" if dark_mode else "#526078",
+    "input": "#172338" if dark_mode else "#ffffff",
+}
+theme_css = """
 <style>
-  :root { color-scheme: dark; }
+  :root { color-scheme: __MODE__; }
   .block-container {padding-top: 1.5rem; padding-bottom: 2rem;}
-  .stApp, [data-testid="stAppViewContainer"] {background:#0b1220;color:#e5eaf2;}
-  [data-testid="stHeader"] {background:rgba(11,18,32,.96);}
-  [data-testid="stSidebar"] {background:#111a2b;border-right:1px solid #29384f;}
-  [data-testid="stMetric"] {background:#121d30;border:1px solid #29384f;padding:16px 18px;border-radius:14px;box-shadow:0 2px 10px rgba(30,50,80,.08);}
-  h1,h2,h3 {color:#f8fafc;}
-  p, label, [data-testid="stCaptionContainer"], [data-testid="stMarkdownContainer"] {color:#c5cfdd;}
-  [data-baseweb="select"] > div, input, textarea {background:#172338;color:#e5eaf2;}
-  [data-testid="stDataFrame"], [data-testid="stTable"] {background:#121d30;}
-  .st-key-theme_toggle button {border:1px solid #29384f;background:#172338;color:#e5eaf2;}
+  .stApp, [data-testid="stAppViewContainer"] {background:__PAGE__;color:__TEXT__;}
+  [data-testid="stHeader"] {background:__HEADER__;}
+  [data-testid="stSidebar"] {background:__SIDEBAR__;border-right:1px solid __BORDER__;}
+  [data-testid="stMetric"] {background:__CARD__;border:1px solid __BORDER__;padding:16px 18px;border-radius:14px;box-shadow:0 2px 10px rgba(30,50,80,.08);}
+  h1,h2,h3 {color:__HEADING__;}
+  p, label, [data-testid="stCaptionContainer"], [data-testid="stMarkdownContainer"] {color:__MUTED__;}
+  [data-baseweb="select"] > div, input, textarea {background:__INPUT__;color:__TEXT__;}
+  [data-testid="stDataFrame"], [data-testid="stTable"] {background:__CARD__;}
+  .st-key-theme_toggle button {border:1px solid __BORDER__;background:__INPUT__;color:__TEXT__;}
 </style>
-""", unsafe_allow_html=True)
+"""
+for token, key in [
+    ("__MODE__", "mode"), ("__PAGE__", "page"), ("__TEXT__", "text"),
+    ("__HEADER__", "header"), ("__SIDEBAR__", "sidebar"),
+    ("__BORDER__", "border"), ("__CARD__", "card"),
+    ("__HEADING__", "heading"), ("__MUTED__", "muted"), ("__INPUT__", "input"),
+]:
+    theme_css = theme_css.replace(token, theme[key])
+st.markdown(theme_css, unsafe_allow_html=True)
 
 st.sidebar.markdown("## 📊 Taqi Motos")
 st.sidebar.caption("Painel financeiro")
