@@ -15,12 +15,6 @@ MONTH_COLORS = [
 ]
 
 
-def _percent(value: float, denominator: float) -> str:
-    if denominator <= 0:
-        return "—"
-    pct = 100 * float(value) / float(denominator)
-    return f"{pct:,.2f}%".replace(",", "X").replace(".", ",").replace("X", ".")
-
 
 def _show_chart(figure, alt: str, key: str):
     st.plotly_chart(figure, width="stretch", theme=None, config=CHART_CONFIG, alt=alt, key=key)
@@ -108,29 +102,9 @@ def _variation_chart(expenses: pd.DataFrame, expense_type: str, base_categories:
         )
 
 
-def _monthly_expense_table(month: int, revenue: float, expenses: pd.DataFrame, categories: list[str]) -> pd.DataFrame:
-    month_rows = expenses[expenses["month"] == month] if not expenses.empty else expenses
-    totals = month_rows.groupby("category_key")["amount"].sum().to_dict() if not month_rows.empty else {}
-    fixed_total = float(month_rows.loc[month_rows["expense_type"].str.casefold() == "fixa", "amount"].sum()) if not month_rows.empty else 0.0
-    variable_total = float(month_rows.loc[month_rows["expense_type"].str.casefold() == "variável", "amount"].sum()) if not month_rows.empty else 0.0
-    rows = [
-        {"Descrição": category.title(), "Valor": float(totals.get(category, 0.0)),
-         "% do faturamento": _percent(float(totals.get(category, 0.0)), revenue)}
-        for category in categories
-    ]
-    rows.extend([
-        {"Descrição": "Despesas variáveis", "Valor": variable_total,
-         "% do faturamento": _percent(variable_total, revenue)},
-        {"Descrição": "Despesas fixas", "Valor": fixed_total,
-         "% do faturamento": _percent(fixed_total, revenue)},
-        {"Descrição": "Faturamento", "Valor": revenue,
-         "% do faturamento": _percent(revenue, revenue)},
-    ])
-    return pd.DataFrame(rows)
-
 
 def render():
-    st.title("Análises da DFC")
+    st.title("Gráficos financeiros")
     st.caption("Análises diárias, semanais, mensais e anuais nos formatos da planilha.")
     year = selected_year()
     transactions = period_transactions(year)
@@ -141,9 +115,9 @@ def render():
     annual_balance = annual_revenue - annual_expenses
 
     warning_reconciliation(year, transactions)
-    daily_tab, comparison_tab, variation_tab, annual_tab, percentage_tab = st.tabs([
+    daily_tab, comparison_tab, variation_tab, annual_tab = st.tabs([
         "Diária e semanal", "Comparadores de despesas", "Variação das despesas",
-        "Totais anuais", "Despesas / faturamento",
+        "Totais anuais",
     ])
 
     with daily_tab:
@@ -154,15 +128,15 @@ def render():
         month = MONTHS.index(month_label) + 1
         month_data = transactions[transactions["date"].dt.month == month] if not transactions.empty else transactions
         day_count = monthrange(year, month)[1]
-        day_numbers = list(range(1, day_count + 1))
+        day_numbers = [day for day in range(1, day_count + 1) if pd.Timestamp(year, month, day).dayofweek != 6]
         day_labels = [f"{day:02d}/{month_label}" for day in day_numbers]
 
         def daily_values(kind: str) -> list[float]:
             if month_data.empty:
-                return [0.0] * day_count
+                return [0.0] * len(day_numbers)
             rows = month_data[month_data["kind"] == kind]
             if rows.empty:
-                return [0.0] * day_count
+                return [0.0] * len(day_numbers)
             totals = rows.groupby(rows["date"].dt.day)["amount"].sum()
             return [float(totals.get(day, 0.0)) for day in day_numbers]
 
@@ -180,15 +154,13 @@ def render():
         )
 
         st.subheader("Receitas e saídas por semana")
-        st.caption("Semana 1: dias 1–7; semana 2: 8–14; semana 3: 15–21; semana 4: 22 até o fim do mês.")
+        st.caption("Semana 1: dias 1–7; semana 2: 8–14; semana 3: 15–21; semana 4: 22 até o fim do mês. Domingos são excluídos.")
         week_index = pd.Series(
             [min((day - 1) // 7 + 1, 4) for day in day_numbers],
             index=day_numbers,
         )
-        weekly_revenue = [sum(revenue_daily[day - 1] for day in day_numbers if week_index[day] == week)
-                          for week in range(1, 5)]
-        weekly_expenses = [sum(expense_daily[day - 1] for day in day_numbers if week_index[day] == week)
-                           for week in range(1, 5)]
+        weekly_revenue = [sum(value for day, value in zip(day_numbers, revenue_daily) if week_index[day] == week) for week in range(1, 5)]
+        weekly_expenses = [sum(value for day, value in zip(day_numbers, expense_daily) if week_index[day] == week) for week in range(1, 5)]
         week_labels = ["Semana 1", "Semana 2", "Semana 3", "Semana 4"]
         left, right = st.columns(2)
         with left:
@@ -252,7 +224,7 @@ def render():
                 "annual_expense_pie",
             )
 
-        st.subheader("Tabela geral de despesas / porcentagem")
+        st.subheader("Total anual por categoria de despesa")
         categories = list(dict.fromkeys(VARIABLE_ORDER + FIXED_ORDER))
         if not expenses.empty:
             extras = sorted(set(expenses["category_key"].unique()) - set(categories))
@@ -260,53 +232,23 @@ def render():
             category_amounts = expenses.groupby("category_key")["amount"].sum().to_dict()
         else:
             category_amounts = {}
-        expense_detail_total = float(expenses["amount"].sum()) if not expenses.empty else 0.0
         fixed_total = float(expenses.loc[expenses["expense_type"].str.casefold() == "fixa", "amount"].sum()) if not expenses.empty else 0.0
         variable_total = float(expenses.loc[expenses["expense_type"].str.casefold() == "variável", "amount"].sum()) if not expenses.empty else 0.0
         annual_rows = [
-            {"Descrição": category.title(), "Valor": float(category_amounts.get(category, 0.0)),
-             "% do faturamento": _percent(float(category_amounts.get(category, 0.0)), annual_revenue),
-             "% das despesas": _percent(float(category_amounts.get(category, 0.0)), annual_expenses)}
+            {"Descrição": category.title(), "Valor": float(category_amounts.get(category, 0.0))}
             for category in categories
         ]
         annual_rows.extend([
-            {"Descrição": "Despesas variáveis", "Valor": variable_total,
-             "% do faturamento": _percent(variable_total, annual_revenue),
-             "% das despesas": _percent(variable_total, annual_expenses)},
-            {"Descrição": "Despesas fixas", "Valor": fixed_total,
-             "% do faturamento": _percent(fixed_total, annual_revenue),
-             "% das despesas": _percent(fixed_total, annual_expenses)},
-            {"Descrição": "Faturamento", "Valor": annual_revenue,
-             "% do faturamento": _percent(annual_revenue, annual_revenue),
-             "% das despesas": "—"},
-            {"Descrição": "Despesas", "Valor": annual_expenses,
-             "% do faturamento": _percent(annual_expenses, annual_revenue),
-             "% das despesas": _percent(annual_expenses, annual_expenses)},
+            {"Descrição": "Despesas variáveis", "Valor": variable_total},
+            {"Descrição": "Despesas fixas", "Valor": fixed_total},
+            {"Descrição": "Faturamento", "Valor": annual_revenue},
+            {"Descrição": "Despesas", "Valor": annual_expenses},
         ])
         annual_table = pd.DataFrame(annual_rows)
-        st.dataframe(annual_table, hide_index=True, use_container_width=True, column_config={
+        st.dataframe(annual_table, hide_index=True, width="stretch", column_config={
             "Valor": st.column_config.NumberColumn(format="R$ %.2f"),
         })
         export_csv(annual_table, "Exportar tabela anual CSV", f"despesas_anuais_{year}.csv")
-
-    with percentage_tab:
-        st.caption("Cada percentual é a despesa da categoria dividida pelo faturamento do respectivo mês. Quando não há faturamento, o percentual aparece como —.")
-        categories = list(dict.fromkeys(VARIABLE_ORDER + FIXED_ORDER))
-        if not expenses.empty:
-            categories.extend(sorted(set(expenses["category_key"].unique()) - set(categories)))
-        revenue_by_month = monthly.set_index("month")["revenue"].to_dict()
-        for start in range(0, 12, 3):
-            cols = st.columns(3)
-            for offset, col in enumerate(cols):
-                month = start + offset + 1
-                with col:
-                    st.markdown(f"**{MONTHS[month - 1]}**")
-                    table = _monthly_expense_table(
-                        month, float(revenue_by_month.get(month, 0.0)), expenses, categories
-                    )
-                    st.dataframe(table, hide_index=True, use_container_width=True, column_config={
-                        "Valor": st.column_config.NumberColumn(format="R$ %.2f"),
-                    })
 
 
 render()
