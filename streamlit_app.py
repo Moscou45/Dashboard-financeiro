@@ -9,6 +9,10 @@ st.session_state["app_role"] = role
 db.initialize()
 db.seed_initial_data()
 
+if "app_dark_mode" not in st.session_state:
+    st.session_state["app_dark_mode"] = False
+dark_mode = bool(st.session_state["app_dark_mode"])
+
 theme = {
     "mode": "dark" if dark_mode else "light",
     "page": "#0b1220" if dark_mode else "#f7f9fc",
@@ -48,9 +52,6 @@ st.markdown(theme_css, unsafe_allow_html=True)
 st.sidebar.markdown("## 📊 Taqi Motos")
 st.sidebar.caption("Painel financeiro")
 add_session_controls(role)
-if "app_dark_mode" not in st.session_state:
-    st.session_state["app_dark_mode"] = False
-dark_mode = bool(st.session_state["app_dark_mode"])
 if st.sidebar.button(
     "🌙 Noturno" if dark_mode else "☀️ Claro",
     key="theme_toggle",
