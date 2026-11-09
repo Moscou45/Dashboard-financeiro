@@ -36,6 +36,8 @@ theme_css = """
   h1,h2,h3 {color:__HEADING__;}
   p, label, [data-testid="stCaptionContainer"], [data-testid="stMarkdownContainer"] {color:__MUTED__;}
   [data-baseweb="select"] > div, input, textarea {background:__INPUT__;color:__TEXT__;}
+  [data-testid="stSelectbox"] [role="group"], [data-testid="stMultiSelect"] [role="group"] {background:__INPUT__;color:__TEXT__;border-color:__BORDER__;}
+  [data-testid="stSidebar"] [data-testid="stButton"] button {background:__INPUT__;color:__TEXT__;border-color:__BORDER__;}
   [data-testid="stDataFrame"], [data-testid="stTable"] {background:__CARD__;}
   .st-key-theme_toggle button {border:1px solid __BORDER__;background:__INPUT__;color:__TEXT__;}
 </style>
