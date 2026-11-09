@@ -6,13 +6,13 @@ import numpy as np
 import plotly.graph_objects as go
 import streamlit as st
 
-BLUE = "#4f63f5"
-TEAL = "#20b486"
-RED = "#e36578"
-GOLD = "#f1a33c"
-PURPLE = "#8b6fe8"
-SKY = "#49a4c8"
-PALETTE = [BLUE, TEAL, GOLD, RED, PURPLE, SKY, "#8b9bb4", "#d26ca5"]
+BLUE = "#4386f4"
+TEAL = "#16a085"
+RED = "#e15b64"
+GOLD = "#e5a63b"
+PURPLE = "#8268d8"
+SKY = "#36a3b8"
+PALETTE = [BLUE, TEAL, GOLD, RED, PURPLE, SKY, "#8b9bb4", "#cf6fa4"]
 CHART_CONFIG = {"displayModeBar": "hover", "displaylogo": False, "responsive": True}
 
 
@@ -38,6 +38,8 @@ def _layout(fig: go.Figure, title: str, height: int = 380) -> go.Figure:
         hoverlabel={"bgcolor": "#172033", "font": {"color": "white", "size": 12}, "bordercolor": "#172033"},
         legend={"orientation": "h", "yanchor": "bottom", "y": 1.02, "x": 0, "xanchor": "left", "title_text": ""},
         hovermode="x unified",
+        transition={"duration": 420, "easing": "cubic-in-out"},
+        uirevision=title,
     )
     fig.update_xaxes(showgrid=False, zeroline=False, linecolor=axis_color, tickfont={"color": text_color})
     fig.update_yaxes(showgrid=True, gridcolor=grid_color, zeroline=False, linecolor="rgba(0,0,0,0)", tickfont={"color": text_color})
@@ -52,8 +54,8 @@ def financial_overview(labels: Sequence[str], revenue: Sequence[float], expenses
     fig = go.Figure()
     fig.add_bar(x=list(labels), y=list(revenue), name="Receitas", marker_color=BLUE, marker_line_width=0, hovertemplate=_money_hover("Receitas"))
     fig.add_bar(x=list(labels), y=list(expenses), name="Despesas", marker_color=RED, marker_line_width=0, hovertemplate=_money_hover("Despesas"))
-    fig.add_scatter(x=list(labels), y=list(balance), name="Saldo", mode="lines+markers", line={"color": TEAL, "width": 3}, marker={"size": 7, "line": {"color": "white", "width": 1.5}}, hovertemplate=_money_hover("Saldo"))
-    fig.update_layout(barmode="group", bargap=0.28, bargroupgap=0.12)
+    fig.add_scatter(x=list(labels), y=list(balance), name="Saldo", mode="lines+markers", line={"color": TEAL, "width": 3, "shape": "spline", "smoothing": 0.55}, marker={"size": 7, "line": {"color": "white", "width": 1.5}}, hovertemplate=_money_hover("Saldo"))
+    fig.update_layout(barmode="group", bargap=0.32, bargroupgap=0.12)
     fig.update_yaxes(tickprefix="R$ ", tickformat="~s", separatethousands=True)
     return _layout(fig, "Receitas, despesas e saldo por mês", 420)
 
@@ -112,8 +114,8 @@ def grouped_bar(labels: Sequence[str], series: Sequence[Sequence[float]], title:
 
 def variation_chart(labels: Sequence[str], revenue_change: Sequence[float], expense_change: Sequence[float]) -> go.Figure:
     fig = go.Figure()
-    fig.add_scatter(x=list(labels), y=list(revenue_change), name="Receitas", mode="lines+markers", connectgaps=False, line={"color": BLUE, "width": 3}, marker={"size": 7}, hovertemplate="<b>Receitas</b><br>%{x}<br>%{y:.1f}%<extra></extra>")
-    fig.add_scatter(x=list(labels), y=list(expense_change), name="Despesas", mode="lines+markers", connectgaps=False, line={"color": RED, "width": 3}, marker={"size": 7}, hovertemplate="<b>Despesas</b><br>%{x}<br>%{y:.1f}%<extra></extra>")
+    fig.add_scatter(x=list(labels), y=list(revenue_change), name="Receitas", mode="lines+markers", connectgaps=False, line={"color": BLUE, "width": 3, "shape": "spline", "smoothing": 0.45}, marker={"size": 7}, hovertemplate="<b>Receitas</b><br>%{x}<br>%{y:.1f}%<extra></extra>")
+    fig.add_scatter(x=list(labels), y=list(expense_change), name="Despesas", mode="lines+markers", connectgaps=False, line={"color": RED, "width": 3, "shape": "spline", "smoothing": 0.45}, marker={"size": 7}, hovertemplate="<b>Despesas</b><br>%{x}<br>%{y:.1f}%<extra></extra>")
     fig.add_hline(y=0, line_color="#aeb8c7", line_width=1)
     fig.update_yaxes(ticksuffix="%", zeroline=False)
     return _layout(fig, "Variação mensal em relação ao mês anterior", 360)
@@ -136,11 +138,12 @@ def pie_chart(labels: Sequence[str], values: Sequence[float], title: str) -> go.
     if clean:
         names, amounts = zip(*clean)
         fig.add_trace(go.Pie(
-            labels=list(names), values=list(amounts), sort=False,
+            labels=list(names), values=list(amounts), hole=0.62, sort=False,
             marker={"colors": PALETTE, "line": {"color": "white", "width": 2}},
-            textinfo="label+percent", textposition="outside",
+            textinfo="percent", textposition="inside", insidetextfont={"color": "white", "size": 11},
             hovertemplate="<b>%{label}</b><br>R$ %{value:,.2f}<br>%{percent}<extra></extra>",
         ))
+        fig.add_annotation(x=0.5, y=0.5, text=f"<b>R$ {sum(amounts):,.0f}</b><br><span style='font-size:11px;color:#8792a5'>despesas</span>", showarrow=False, font={"size": 15, "color": _theme_colors()[1]})
     else:
         fig.add_annotation(x=0.5, y=0.5, text="Sem despesas detalhadas no ano",
                            showarrow=False, font={"size": 13, "color": _theme_colors()[2]})
@@ -149,7 +152,7 @@ def pie_chart(labels: Sequence[str], values: Sequence[float], title: str) -> go.
         title={"text": title, "x": 0.015, "xanchor": "left",
                "font": {"size": 16, "color": title_color}},
         template="plotly_dark" if dark else "plotly_white",
-        height=420, margin={"l": 24, "r": 24, "t": 56, "b": 24},
+        height=400, margin={"l": 14, "r": 14, "t": 56, "b": 22},
         paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
         font={"family": "Inter, Arial, sans-serif", "size": 11, "color": text_color},
         legend={"orientation": "h", "yanchor": "top", "y": -0.05,
@@ -164,7 +167,7 @@ def expense_variation_chart(labels: Sequence[str], values: Sequence[float | None
     fig.add_scatter(
         x=list(labels), y=list(values), name="Variação",
         mode="lines+markers", connectgaps=False,
-        line={"color": BLUE, "width": 3}, marker={"size": 7},
+        line={"color": BLUE, "width": 3, "shape": "spline", "smoothing": 0.45}, marker={"size": 7},
         hovertemplate="<b>%{x}</b><br>%{y:.2f}%<extra></extra>",
     )
     fig.add_hline(y=0, line_color="#aeb8c7", line_width=1)
