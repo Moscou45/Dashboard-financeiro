@@ -121,9 +121,13 @@ def render():
     ])
 
     with daily_tab:
+        latest_data_month = (
+            int(transactions["date"].dt.month.max())
+            if not transactions.empty else pd.Timestamp.today().month
+        )
         month_label = st.selectbox(
             "Mês para análise diária e semanal", MONTHS,
-            index=pd.Timestamp.today().month - 1, key="analysis_daily_month",
+            index=latest_data_month - 1, key="analysis_daily_month",
         )
         month = MONTHS.index(month_label) + 1
         month_data = transactions[transactions["date"].dt.month == month] if not transactions.empty else transactions
