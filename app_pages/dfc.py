@@ -41,7 +41,7 @@ def _expense_section(label: str, expense_type: str, rows: pd.DataFrame, selected
                 when, "Despesa", category, amount,
                 expense_type=expense_type, description=description,
             )
-            st.success(f"Despesa {expense_type.casefold()} salva na DFC.")
+            st.success(f"Despesa {expense_type.casefold()} salva no Lançamento.")
             st.rerun()
 
     visible = rows[rows["date"].dt.month.isin(selected_months)].copy() if not rows.empty else rows.copy()
@@ -65,7 +65,7 @@ def _expense_section(label: str, expense_type: str, rows: pd.DataFrame, selected
 
 
 def render():
-    st.title("DFC")
+    st.title("Lançamento")
     st.caption("Cadastre receitas e despesas nesta página. Cada movimentação aparece na seção correspondente.")
     year = selected_year()
     transactions = period_transactions(year)
@@ -138,7 +138,7 @@ def render():
                 st.error("Informe uma categoria para a receita.")
             else:
                 db.add_transaction(when, "Receita", category, amount, method)
-                st.success("Receita salva na DFC.")
+                st.success("Receita salva no Lançamento.")
                 st.rerun()
 
         st.dataframe(
