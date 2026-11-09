@@ -11,8 +11,7 @@ MONTH_NAMES = [
     "JANEIRO", "FEVEREIRO", "MARÇO", "ABRIL", "MAIO", "JUNHO",
     "JULHO", "AGOSTO", "SETEMBRO", "OUTUBRO", "NOVEMBRO", "DEZEMBRO",
 ]
-NAVY = "#06265d"
-BAR_BLUE = "#4188f2"
+BAR_BLUE = "#4386f4"
 
 
 def _brl(value: float) -> str:
@@ -34,25 +33,31 @@ def _ranking_chart(labels: list[str], values: list[float], title: str, key: str,
         text = [f"{value:,.0f}".replace(",", ".") for value in values]
         hover = "%{x:,.0f} unidades"
 
+    dark = bool(st.session_state.get("app_dark_mode", False))
+    label_color = "#e7edf7" if dark else "#334155"
+    muted_color = "#a9bad0" if dark else "#64748b"
     fig = go.Figure(go.Bar(
         x=values,
         y=labels,
         orientation="h",
-        marker={"color": BAR_BLUE, "line": {"color": "#78aaff", "width": 1}},
+        marker={"color": BAR_BLUE, "line": {"color": "#78aaff", "width": 0}},
         text=text,
         textposition="outside",
-        textfont={"color": "white", "size": 10},
+        textfont={"color": label_color, "size": 10},
         cliponaxis=False,
         hovertemplate=f"<b>%{{y}}</b><br>{hover}<extra></extra>",
     ))
     max_value = max(values, default=0.0)
     fig.update_layout(
-        title={"text": title, "x": 0.5, "xanchor": "center", "font": {"size": 15, "color": "white"}},
-        paper_bgcolor=NAVY,
-        plot_bgcolor=NAVY,
-        font={"family": "Inter, Arial, sans-serif", "size": 9, "color": "white"},
-        height=max(330, 27 * len(labels) + 100),
-        margin={"l": 245, "r": 92, "t": 48, "b": 24},
+        title={"text": title, "x": 0.02, "xanchor": "left", "font": {"size": 15, "color": label_color}},
+        template="plotly_dark" if dark else "plotly_white",
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        font={"family": "Inter, Arial, sans-serif", "size": 10, "color": muted_color},
+        height=max(350, 29 * len(labels) + 112),
+        transition={"duration": 420, "easing": "cubic-in-out"},
+        uirevision=key,
+        margin={"l": 245, "r": 92, "t": 54, "b": 26},
         showlegend=False,
         bargap=0.3,
         hoverlabel={"bgcolor": "#172033", "font": {"color": "white"}},
@@ -67,7 +72,7 @@ def _ranking_chart(labels: list[str], values: list[float], title: str, key: str,
         autorange="reversed",
         showgrid=False,
         zeroline=False,
-        tickfont={"size": 9, "color": "white"},
+        tickfont={"size": 9, "color": muted_color},
     )
     return fig
 
@@ -78,6 +83,8 @@ def _show_chart(fig, alt: str, key: str):
 
 def render():
     st.title("Produtos")
+    st.caption("Desempenho por faturamento, lucro, margem e quantidade. Use o filtro para comparar os meses.")
+    st.caption("Desempenho por faturamento, lucro, margem e quantidade. Use o filtro para comparar os meses.")
     year = selected_year()
     products = db.get_products(year)
 
