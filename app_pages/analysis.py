@@ -16,6 +16,12 @@ MONTH_COLORS = [
 
 
 
+def _percent(value: float, total: float) -> str:
+    if not total:
+        return "—"
+    return f"{value / total * 100:.2f}%".replace(".", ",")
+
+
 def _show_chart(figure, alt: str, key: str):
     st.plotly_chart(figure, width="stretch", theme=None, config=CHART_CONFIG, alt=alt, key=key)
 
@@ -238,20 +244,45 @@ def render():
             category_amounts = {}
         fixed_total = float(expenses.loc[expenses["expense_type"].str.casefold() == "fixa", "amount"].sum()) if not expenses.empty else 0.0
         variable_total = float(expenses.loc[expenses["expense_type"].str.casefold() == "variável", "amount"].sum()) if not expenses.empty else 0.0
+        st.caption("As porcentagens mostram cada categoria sobre o faturamento anual e sobre o total anual de despesas.")
+        category_type = {
+            **{name: "Variável" for name in VARIABLE_ORDER},
+            **{name: "Fixa" for name in FIXED_ORDER},
+        }
         annual_rows = [
-            {"Descrição": category.title(), "Valor": float(category_amounts.get(category, 0.0))}
+            {
+                "Tipo": category_type.get(category, "Outra"),
+                "Descrição": category.title(),
+                "Valor": float(category_amounts.get(category, 0.0)),
+                "% do faturamento": _percent(float(category_amounts.get(category, 0.0)), annual_revenue),
+                "% das despesas": _percent(float(category_amounts.get(category, 0.0)), annual_expenses),
+            }
             for category in categories
         ]
         annual_rows.extend([
-            {"Descrição": "Despesas variáveis", "Valor": variable_total},
-            {"Descrição": "Despesas fixas", "Valor": fixed_total},
-            {"Descrição": "Faturamento", "Valor": annual_revenue},
-            {"Descrição": "Despesas", "Valor": annual_expenses},
+            {"Tipo": "Subtotal", "Descrição": "Despesas variáveis", "Valor": variable_total,
+             "% do faturamento": _percent(variable_total, annual_revenue), "% das despesas": _percent(variable_total, annual_expenses)},
+            {"Tipo": "Subtotal", "Descrição": "Despesas fixas", "Valor": fixed_total,
+             "% do faturamento": _percent(fixed_total, annual_revenue), "% das despesas": _percent(fixed_total, annual_expenses)},
+            {"Tipo": "Receita", "Descrição": "Faturamento anual", "Valor": annual_revenue,
+             "% do faturamento": _percent(annual_revenue, annual_revenue), "% das despesas": "—"},
+            {"Tipo": "Resumo", "Descrição": "Despesas anuais", "Valor": annual_expenses,
+             "% do faturamento": _percent(annual_expenses, annual_revenue), "% das despesas": _percent(annual_expenses, annual_expenses)},
         ])
-        annual_table = pd.DataFrame(annual_rows)
-        st.dataframe(annual_table, hide_index=True, width="stretch", column_config={
-            "Valor": st.column_config.NumberColumn(format="R$ %.2f"),
-        })
+        annual_table = pd.DataFrame(annual_rows, columns=[
+            "Tipo", "Descrição", "Valor", "% do faturamento", "% das despesas",
+        ])
+        st.dataframe(
+            annual_table, hide_index=True, width="stretch",
+            column_order=["Tipo", "Descrição", "Valor", "% do faturamento", "% das despesas"],
+            column_config={
+                "Tipo": st.column_config.TextColumn("Tipo", width="small"),
+                "Descrição": st.column_config.TextColumn("Categoria", width="medium"),
+                "Valor": st.column_config.NumberColumn("Valor anual", format="R$ %.2f", width="medium"),
+                "% do faturamento": st.column_config.TextColumn("% do faturamento", width="small"),
+                "% das despesas": st.column_config.TextColumn("% das despesas", width="small"),
+            },
+        )
         export_csv(annual_table, "Exportar tabela anual CSV", f"despesas_anuais_{year}.csv")
 
 
