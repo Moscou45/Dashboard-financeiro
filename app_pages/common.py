@@ -24,8 +24,12 @@ def selected_year() -> int:
 
 
 def month_range_filter(df: pd.DataFrame, key: str) -> pd.DataFrame:
-    months = st.sidebar.multiselect("Meses", MONTHS, default=MONTHS, key=key)
-    chosen = [MONTHS.index(m) + 1 for m in months]
+    options = ["Todos os meses", *MONTHS]
+    selected = st.sidebar.selectbox(
+        "Mês", options, index=0, key=f"{key}_month_selector",
+    )
+    chosen = list(range(1, 13)) if selected == "Todos os meses" else [MONTHS.index(selected) + 1]
+    st.session_state[f"{key}_selected_months"] = chosen
     return df[df["month"].isin(chosen)].copy()
 
 
