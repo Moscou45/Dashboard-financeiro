@@ -63,7 +63,10 @@ brand_css = """
 [data-testid="stMetric"]{background:__CARD__;border:1px solid __BORDER__;padding:18px 20px;border-radius:16px;box-shadow:0 8px 24px rgba(15,35,65,.06);transition:transform .18s ease,box-shadow .18s ease;}
 [data-testid="stMetric"]:hover{transform:translateY(-2px);box-shadow:0 12px 28px rgba(15,35,65,.10);}
 [data-testid="stMetricLabel"]{color:__MUTED__;}[data-testid="stMetricValue"]{color:__HEADING__;}
-h1,h2,h3{color:__HEADING__;letter-spacing:-.025em;}h1{font-size:2rem!important;font-weight:720!important;}
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500&family=Poppins:wght@700&display=swap');
+body,.stApp,button,input,textarea,[data-testid="stTabs"] button{font-family:'Inter',sans-serif;font-weight:400;}
+h1,h2,h3,[data-testid="stMetricLabel"],[data-testid="stMetricValue"]{font-family:'Poppins',sans-serif;font-weight:700;color:__HEADING__;letter-spacing:-.025em;}
+h1{font-size:2rem!important;}
 p,label,[data-testid="stCaptionContainer"],[data-testid="stMarkdownContainer"]{color:__MUTED__;}
 [data-baseweb="select"]>div,input,textarea,[data-baseweb="input"]>div{background:__INPUT__;color:__TEXT__;border-color:__BORDER__;}
 [data-testid="stTextInput"] input,[data-testid="stNumberInput"] input,[data-testid="stDateInput"] input{background:__INPUT__;color:__TEXT__;}
@@ -82,17 +85,6 @@ for token, key in [("__PAGE__", "page"), ("__TEXT__", "text"), ("__CARD__", "car
 st.markdown(brand_css, unsafe_allow_html=True)
 
 
-st.sidebar.markdown("## 📊 Taqi Motos")
-st.sidebar.caption("Painel financeiro")
-add_session_controls(role)
-if st.sidebar.button(
-    "☀️ Tema claro" if dark_mode else "🌙 Tema noturno",
-    key="theme_toggle",
-    width="stretch",
-    help="Alternar entre tema claro e noturno",
-):
-    st.session_state["app_dark_mode"] = not dark_mode
-    st.rerun()
 can_edit = role == "owner"
 
 navigation = st.navigation(
@@ -115,4 +107,15 @@ navigation = st.navigation(
 navigation.run()
 
 st.sidebar.divider()
+st.sidebar.markdown("## 📊 Taqi Motos")
+st.sidebar.caption("Painel financeiro")
+add_session_controls(role)
+if st.sidebar.button(
+    "☀️ Tema claro" if dark_mode else "🌙 Tema noturno",
+    key="theme_toggle",
+    width="stretch",
+    help="Alternar entre tema claro e noturno",
+):
+    st.session_state["app_dark_mode"] = not dark_mode
+    st.rerun()
 st.sidebar.caption("PostgreSQL na nuvem" if db.engine.dialect.name != "sqlite" else "Demonstração local • SQLite")
