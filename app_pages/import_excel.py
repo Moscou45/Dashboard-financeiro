@@ -91,7 +91,7 @@ def render():
         return
     df.columns = [str(c).strip() for c in df.columns]
     mode = st.radio("Tipo de dados", ["Movimenta��es financeiras", "Vendas de produtos"], horizontal=True)
-    st.dataframe(df.head(8), hide_index=True, use_container_width=True)
+    st.dataframe(df.head(8), hide_index=True, width="stretch")
     cols = df.columns.tolist()
     if mode == "Movimenta��es financeiras":
         st.markdown("Mapeie as colunas obrigat�rias e, se existirem, as opcionais.")
@@ -157,7 +157,7 @@ def render():
             with st.expander("Ver linhas com problemas"):
                 st.write("\n".join(pending["errors"][:50]))
         if pending["rows"]:
-            st.dataframe(pd.DataFrame(pending["rows"]).drop(columns="dedupe_key").head(10), hide_index=True, use_container_width=True)
+            st.dataframe(pd.DataFrame(pending["rows"]).drop(columns="dedupe_key").head(10), hide_index=True, width="stretch")
             if st.button("Importar linhas v�lidas", type="primary"):
                 inserted, skipped = (db.import_financial_rows(pending["rows"]) if pending["kind"]=="finance" else db.import_product_rows(pending["rows"]))
                 st.session_state.pop("pending_import",None)
