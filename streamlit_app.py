@@ -72,13 +72,28 @@ h1,h2,h3,[data-testid="stMetricLabel"],[data-testid="stMetricValue"],[data-testi
 [data-testid="stMetricLabel"]{color:__MUTED__!important;}[data-testid="stMetricValue"]{color:__HEADING__!important;}
 h1,h2,h3{color:__HEADING__!important;}
 p,label,[data-testid="stCaptionContainer"],[data-testid="stMarkdownContainer"]{color:__MUTED__;}
-[data-baseweb="input"]>div,[data-baseweb="select"]>div,input,textarea{background:__INPUT__!important;border-color:__BORDER__!important;}
-[data-baseweb="input"] input,[data-baseweb="select"] *,input,textarea{color:__TEXT__!important;-webkit-text-fill-color:__TEXT__;}
+[data-testid="stForm"] [data-baseweb="input"]>div,
+[data-testid="stForm"] [data-baseweb="select"]>div,
+[data-testid="stForm"] input,
+[data-testid="stForm"] textarea,
+[data-testid="stForm"] [data-testid="stDateInput"]>div,
+[data-testid="stForm"] [data-testid="stDateInput"] input,
+[data-baseweb="input"]>div,[data-baseweb="select"]>div,input,textarea{
+  background-color:__INPUT__!important;border-color:__BORDER__!important;
+  transition:background-color .22s ease,color .22s ease,border-color .22s ease;
+}
+[data-testid="stForm"] input,[data-testid="stForm"] textarea,
+[data-testid="stForm"] [data-baseweb="select"] *,
+[data-baseweb="input"] input,[data-baseweb="select"] *,input,textarea{
+  color:__TEXT__!important;-webkit-text-fill-color:__TEXT__!important;
+}
+[data-testid="stForm"] [data-baseweb="select"] svg,
+[data-testid="stForm"] [data-testid="stDateInput"] svg{fill:__MUTED__!important;color:__MUTED__!important;}
 input::placeholder,textarea::placeholder{color:__MUTED__!important;opacity:1;}
 [data-baseweb="popover"] *,[role="listbox"],[role="option"]{color:__TEXT__;}
 [data-testid="stForm"],[data-testid="stVerticalBlockBorderWrapper"]{border-color:__BORDER__!important;border-radius:16px;}
-[data-testid="stForm"]{background:__CARD__;padding:1rem 1.15rem;}
-[data-testid="stDataFrame"],[data-testid="stTable"]{background:__CARD__;border:1px solid __BORDER__;border-radius:12px;overflow:hidden;}
+[data-testid="stForm"]{background:__CARD__;padding:1rem 1.15rem;transition:background-color .22s ease,border-color .22s ease;}
+[data-testid="stDataFrame"],[data-testid="stTable"]{background:__CARD__;border:1px solid __BORDER__;border-radius:12px;overflow:hidden;transition:background-color .22s ease,border-color .22s ease;}
 [data-testid="stPlotlyChart"]{background:__CARD__;border:1px solid __BORDER__;border-radius:16px;padding:8px 8px 2px;}
 [data-testid="stButton"] button,[data-testid="stDownloadButton"] button,[data-testid="stFormSubmitButton"] button{border-radius:10px;transition:all .16s ease;}
 [data-testid="stFormSubmitButton"] button[kind="primary"]{background:#0f9f91;border-color:#0f9f91;color:#fff;font-weight:650;}
