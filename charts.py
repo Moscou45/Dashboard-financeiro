@@ -28,11 +28,11 @@ def _theme_colors() -> tuple[bool, str, str, str, str]:
 def _layout(fig: go.Figure, title: str, height: int = 380) -> go.Figure:
     dark, title_color, text_color, grid_color, axis_color = _theme_colors()
     fig.update_layout(
-        title={"text": title, "x": 0.015, "xanchor": "left", "font": {"size": 16, "color": title_color}},
+        title={"text": title, "x": 0.015, "xanchor": "left", "font": {"family": "Poppins, sans-serif", "size": 16, "color": title_color}},
         template="plotly_dark" if dark else "plotly_white",
         height=height,
         margin={"l": 18, "r": 18, "t": 62, "b": 28},
-        font={"family": "Inter, Arial, sans-serif", "size": 12, "color": text_color},
+        font={"family": "Inter, sans-serif", "size": 12, "color": text_color},
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)",
         hoverlabel={"bgcolor": "#172033", "font": {"color": "white", "size": 12}, "bordercolor": "#172033"},
@@ -78,11 +78,11 @@ def donut_chart(labels: Sequence[str], values: Sequence[float], title: str) -> g
         fig.add_annotation(x=0.5, y=0.52, text="Sem dados no período", showarrow=False, font={"size": 13, "color": _theme_colors()[2]})
     dark, title_color, text_color, _, _ = _theme_colors()
     fig.update_layout(
-        title={"text": title, "x": 0.015, "xanchor": "left", "font": {"size": 16, "color": title_color}},
+        title={"text": title, "x": 0.015, "xanchor": "left", "font": {"family": "Poppins, sans-serif", "size": 16, "color": title_color}},
         template="plotly_dark" if dark else "plotly_white",
         height=360, margin={"l": 12, "r": 12, "t": 56, "b": 54},
         paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
-        font={"family": "Inter, Arial, sans-serif", "size": 11, "color": text_color},
+        font={"family": "Inter, sans-serif", "size": 11, "color": text_color},
         legend={"orientation": "h", "yanchor": "top", "y": -0.12, "xanchor": "left", "x": 0, "font": {"size": 10}},
         hoverlabel={"bgcolor": "#172033", "font": {"color": "white"}},
     )
@@ -150,11 +150,11 @@ def pie_chart(labels: Sequence[str], values: Sequence[float], title: str) -> go.
     dark, title_color, text_color, _, _ = _theme_colors()
     fig.update_layout(
         title={"text": title, "x": 0.015, "xanchor": "left",
-               "font": {"size": 16, "color": title_color}},
+               "font": {"family": "Poppins, sans-serif", "size": 16, "color": title_color}},
         template="plotly_dark" if dark else "plotly_white",
         height=400, margin={"l": 14, "r": 14, "t": 56, "b": 22},
         paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
-        font={"family": "Inter, Arial, sans-serif", "size": 11, "color": text_color},
+        font={"family": "Inter, sans-serif", "size": 11, "color": text_color},
         legend={"orientation": "h", "yanchor": "top", "y": -0.05,
                 "xanchor": "left", "x": 0, "font": {"size": 10}},
         hoverlabel={"bgcolor": "#172033", "font": {"color": "white"}},
