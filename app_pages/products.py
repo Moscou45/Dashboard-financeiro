@@ -84,7 +84,6 @@ def _show_chart(fig, alt: str, key: str):
 def render():
     st.title("Produtos")
     st.caption("Desempenho por faturamento, lucro, margem e quantidade. Use o filtro para comparar os meses.")
-    st.caption("Desempenho por faturamento, lucro, margem e quantidade. Use o filtro para comparar os meses.")
     year = selected_year()
     products = db.get_products(year)
 
