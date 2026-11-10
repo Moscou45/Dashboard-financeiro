@@ -66,7 +66,6 @@ def _expense_section(label: str, expense_type: str, rows: pd.DataFrame, selected
 
 def render():
     st.title("Lançamento")
-    st.caption("Cadastre receitas e despesas nesta página. Cada movimentação aparece na seção correspondente.")
     year = selected_year()
     transactions = period_transactions(year)
     data = transactions.copy()
@@ -100,7 +99,7 @@ def render():
 
     filtered_daily = month_range_filter(daily, "dfc_months")
     selected_months = [MONTHS.index(month) + 1 for month in MONTHS
-                       if month in st.session_state.get("dfc_months", MONTHS)]
+                       if month in st.session_state.get("dfc_months_selected_months", list(range(1, 13)))]
 
     expense_rows = data[data["kind"] == "Despesa"].copy() if not data.empty else pd.DataFrame(
         columns=["date", "category", "amount", "expense_type", "description"]
@@ -117,7 +116,6 @@ def render():
     metrics[0].metric("Entradas no período", brl(in_total))
     metrics[1].metric("Saídas no período", brl(out_total))
     metrics[2].metric("Saldo líquido do período", brl(in_total - out_total))
-    st.caption("Saldo líquido = entradas menos saídas. O saldo diário não inclui saldo inicial nem acumula os dias anteriores.")
 
     receipts = filtered_daily[["Data", *PAYMENT_ORDER, "Entradas"]].copy()
     receipts = receipts[receipts["Entradas"] != 0]
