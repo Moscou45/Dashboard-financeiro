@@ -32,7 +32,7 @@ def _expense_section(label: str, expense_type: str, rows: pd.DataFrame, selected
         category = b.selectbox("Categoria", categories, index=None, key=f"{expense_type}_category")
         amount = a.number_input("Valor (R$)", min_value=0.01, step=10.0, format="%.2f", key=f"{expense_type}_amount")
         description = b.text_input("Descrição", placeholder="Ex.: fornecedor, detalhe do gasto", key=f"{expense_type}_description")
-        submitted = st.form_submit_button(f"Adicionar despesa {expense_type.casefold()}", type="primary", use_container_width=True)
+        submitted = st.form_submit_button(f"Adicionar despesa {expense_type.casefold()}", type="primary", width="stretch")
     if submitted:
         if not category.strip():
             st.error("Informe a categoria da despesa.")
@@ -55,7 +55,7 @@ def _expense_section(label: str, expense_type: str, rows: pd.DataFrame, selected
     visible["Descrição"] = visible["Descrição"].fillna("")
     visible = visible[["Data", "Categoria", "Valor", "Descrição"]].sort_values("Data", ascending=False)
     st.dataframe(
-        visible, hide_index=True, use_container_width=True,
+        visible, hide_index=True, width="stretch",
         column_config={
             "Data": st.column_config.DateColumn(format="DD/MM/YYYY"),
             "Valor": st.column_config.NumberColumn(format="R$ %.2f"),
@@ -130,7 +130,7 @@ def render():
             category = b.text_input("Categoria", placeholder="Ex.: vendas, serviços", key="revenue_category")
             amount = a.number_input("Valor (R$)", min_value=0.01, step=10.0, format="%.2f", key="revenue_amount")
             method = b.selectbox("Forma de pagamento", PAYMENT_ORDER, key="revenue_payment_method")
-            submitted = st.form_submit_button("Adicionar receita", type="primary", use_container_width=True)
+            submitted = st.form_submit_button("Adicionar receita", type="primary", width="stretch")
         if submitted:
             if not category.strip():
                 st.error("Informe uma categoria para a receita.")
@@ -140,7 +140,7 @@ def render():
                 st.rerun()
 
         st.dataframe(
-            receipts, hide_index=True, use_container_width=True,
+            receipts, hide_index=True, width="stretch",
             column_config={"Data": st.column_config.DateColumn(format="DD/MM/YYYY"), **_money_columns(receipts)},
         )
         if receipts.empty:
@@ -154,7 +154,7 @@ def render():
                 visible = visible.rename(columns={"date": "Data", "category": "Categoria", "amount": "Valor", "description": "Descrição"})
                 visible["Descrição"] = visible["Descrição"].fillna("")
                 visible = visible[["Data", "Categoria", "Valor", "Descrição"]].sort_values("Data", ascending=False)
-                st.dataframe(visible, hide_index=True, use_container_width=True, column_config={
+                st.dataframe(visible, hide_index=True, width="stretch", column_config={
                     "Data": st.column_config.DateColumn(format="DD/MM/YYYY"),
                     "Valor": st.column_config.NumberColumn(format="R$ %.2f"),
                 })
@@ -178,7 +178,7 @@ def render():
     if not selected_daily.empty:
         with st.expander("Resumo diário de entradas, saídas e saldo"):
             visible = selected_daily.drop(columns=["month"])
-            st.dataframe(visible, hide_index=True, use_container_width=True, column_config={
+            st.dataframe(visible, hide_index=True, width="stretch", column_config={
                 "Data": st.column_config.DateColumn(format="DD/MM/YYYY"),
                 **_money_columns(visible),
             })
