@@ -98,8 +98,7 @@ def render():
     daily["month"] = daily["Data"].dt.month if not daily.empty else pd.Series(dtype="int64")
 
     filtered_daily = month_range_filter(daily, "dfc_months")
-    selected_months = [MONTHS.index(month) + 1 for month in MONTHS
-                       if month in st.session_state.get("dfc_months_selected_months", list(range(1, 13)))]
+    selected_months = st.session_state.get("dfc_months_selected_months", list(range(1, 13)))
 
     expense_rows = data[data["kind"] == "Despesa"].copy() if not data.empty else pd.DataFrame(
         columns=["date", "category", "amount", "expense_type", "description"]
