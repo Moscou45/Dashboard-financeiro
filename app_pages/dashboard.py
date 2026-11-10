@@ -13,7 +13,6 @@ def _show_chart(figure, alt: str, key: str):
 
 def render():
     st.title("Visão financeira")
-    st.caption("Receitas, despesas, saldo e formas de pagamento — valores em reais.")
     year = selected_year()
     monthly = db.get_monthly_summary(year)
     monthly["month_label"] = [MONTHS[m - 1] for m in monthly.month]
