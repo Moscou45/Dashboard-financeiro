@@ -90,6 +90,27 @@ for token,key in [("__MODE__","mode"),("__PAGE__","page"),("__TEXT__","text"),("
     brand_css=brand_css.replace(token,theme[key])
 st.markdown(brand_css,unsafe_allow_html=True)
 
+can_edit = role == "owner"
+
+navigation = st.navigation(
+    {
+        "PAINEL": [st.Page("app_pages/dashboard.py", title="Visão financeira", icon="📈", default=True)],
+        "LANÇAMENTOS": [
+            st.Page("app_pages/dfc.py", title="Lançamento", icon="💰"),
+            st.Page("app_pages/products.py", title="Produtos", icon="📦"),
+        ],
+        "ANÁLISES": [st.Page("app_pages/analysis.py", title="Gráficos financeiros", icon="📊")],
+        **({
+            "DADOS": [
+                st.Page("app_pages/import_excel.py", title="Importar planilha", icon="📥"),
+                st.Page("app_pages/reset_data.py", title="Reiniciar dados", icon="🧹"),
+            ]
+        } if can_edit else {}),
+    },
+    position="sidebar",
+)
+navigation.run()
+
 st.sidebar.markdown("## 📊 Taqi Motos")
 st.sidebar.caption("Painel financeiro")
 add_session_controls(role)
