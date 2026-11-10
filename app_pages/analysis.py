@@ -111,7 +111,6 @@ def _variation_chart(expenses: pd.DataFrame, expense_type: str, base_categories:
 
 def render():
     st.title("Gráficos financeiros")
-    st.caption("Análises diárias, semanais, mensais e anuais nos formatos da planilha.")
     year = selected_year()
     transactions = period_transactions(year)
     expenses = _expense_rows(transactions)
