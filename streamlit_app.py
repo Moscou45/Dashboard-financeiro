@@ -52,61 +52,44 @@ for token, key in [
 st.markdown(theme_css, unsafe_allow_html=True)
 brand_css = """
 <style>
-.stApp,[data-testid="stAppViewContainer"]{background:__PAGE__;color:__TEXT__;}
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500&family=Poppins:wght@700&display=swap');
+:root{color-scheme:__MODE__;}
+.stApp,.stApp *{font-family:'Inter',sans-serif!important;font-weight:400;}
+h1,h2,h3,[data-testid="stMetricLabel"],[data-testid="stMetricValue"],[data-testid="stSubheader"]{font-family:'Poppins',sans-serif!important;font-weight:700!important;letter-spacing:-.02em;}
+[data-testid="stTabs"] button,[data-testid="stSidebarNav"] a{font-family:'Inter',sans-serif!important;font-weight:500!important;}
 .block-container{max-width:1600px;padding-top:2rem;padding-bottom:3rem;}
+.stApp,[data-testid="stAppViewContainer"]{background:__PAGE__;color:__TEXT__;}
 [data-testid="stSidebar"]{background:#082f49;border-right:1px solid rgba(255,255,255,.08);}
 [data-testid="stSidebar"] *{color:#e8f2fb;}
-[data-testid="stSidebar"] [data-testid="stCaptionContainer"]{color:#a9c1d4;}
+[data-testid="stSidebar"] label,[data-testid="stSidebar"] [data-testid="stWidgetLabel"]{color:#d5e4ee!important;}
+[data-testid="stSidebar"] [data-testid="stCaptionContainer"]{color:#a9c1d4!important;}
+[data-testid="stSidebar"] [data-baseweb="select"]>div{background:#142a3d!important;border-color:#36536b!important;}
+[data-testid="stSidebar"] [data-baseweb="select"] *,[data-testid="stSidebar"] [data-baseweb="select"] input{color:#f4f8fb!important;-webkit-text-fill-color:#f4f8fb!important;}
 [data-testid="stSidebar"] [data-testid="stButton"] button{background:rgba(255,255,255,.08);color:#fff;border:1px solid rgba(255,255,255,.16);border-radius:10px;}
 [data-testid="stSidebarNav"] a{border-radius:9px;margin:2px 4px;transition:background .18s ease,color .18s ease;}
 [data-testid="stSidebarNav"] a[aria-current="page"]{background:rgba(45,212,191,.18);color:#7debdc;font-weight:650;}
-[data-testid="stMetric"]{background:__CARD__;border:1px solid __BORDER__;padding:18px 20px;border-radius:16px;box-shadow:0 8px 24px rgba(15,35,65,.06);transition:transform .18s ease,box-shadow .18s ease;}
-[data-testid="stMetric"]:hover{transform:translateY(-2px);box-shadow:0 12px 28px rgba(15,35,65,.10);}
-[data-testid="stMetricLabel"]{color:__MUTED__;}[data-testid="stMetricValue"]{color:__HEADING__;}
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500&family=Poppins:wght@700&display=swap');
-body,.stApp,button,input,textarea,[data-testid="stTabs"] button{font-family:'Inter',sans-serif;font-weight:400;}
-h1,h2,h3,[data-testid="stMetricLabel"],[data-testid="stMetricValue"]{font-family:'Poppins',sans-serif;font-weight:700;color:__HEADING__;letter-spacing:-.025em;}
-h1{font-size:2rem!important;}
+[data-testid="stMetric"]{background:__CARD__;border:1px solid __BORDER__;padding:18px 20px;border-radius:16px;box-shadow:0 8px 24px rgba(15,35,65,.06);}
+[data-testid="stMetricLabel"]{color:__MUTED__!important;}[data-testid="stMetricValue"]{color:__HEADING__!important;}
+h1,h2,h3{color:__HEADING__!important;}
 p,label,[data-testid="stCaptionContainer"],[data-testid="stMarkdownContainer"]{color:__MUTED__;}
-[data-baseweb="select"]>div,input,textarea,[data-baseweb="input"]>div{background:__INPUT__;color:__TEXT__;border-color:__BORDER__;}
-[data-testid="stTextInput"] input,[data-testid="stNumberInput"] input,[data-testid="stDateInput"] input{background:__INPUT__;color:__TEXT__;}
+[data-baseweb="input"]>div,[data-baseweb="select"]>div,input,textarea{background:__INPUT__!important;border-color:__BORDER__!important;}
+[data-baseweb="input"] input,[data-baseweb="select"] *,input,textarea{color:__TEXT__!important;-webkit-text-fill-color:__TEXT__;}
+input::placeholder,textarea::placeholder{color:__MUTED__!important;opacity:1;}
+[data-baseweb="popover"] *,[role="listbox"],[role="option"]{color:__TEXT__;}
 [data-testid="stForm"],[data-testid="stVerticalBlockBorderWrapper"]{border-color:__BORDER__!important;border-radius:16px;}
 [data-testid="stForm"]{background:__CARD__;padding:1rem 1.15rem;}
 [data-testid="stDataFrame"],[data-testid="stTable"]{background:__CARD__;border:1px solid __BORDER__;border-radius:12px;overflow:hidden;}
-[data-testid="stPlotlyChart"]{background:__CARD__;border:1px solid __BORDER__;border-radius:16px;padding:8px 8px 2px;box-shadow:0 8px 24px rgba(15,35,65,.045);}
+[data-testid="stPlotlyChart"]{background:__CARD__;border:1px solid __BORDER__;border-radius:16px;padding:8px 8px 2px;}
 [data-testid="stButton"] button,[data-testid="stDownloadButton"] button,[data-testid="stFormSubmitButton"] button{border-radius:10px;transition:all .16s ease;}
 [data-testid="stFormSubmitButton"] button[kind="primary"]{background:#0f9f91;border-color:#0f9f91;color:#fff;font-weight:650;}
 .st-key-theme_toggle button{border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.08);color:white;}
 @media(max-width:700px){.block-container{padding:1rem .8rem 2rem;}h1{font-size:1.65rem!important;}}
 </style>
 """
-for token, key in [("__PAGE__", "page"), ("__TEXT__", "text"), ("__CARD__", "card"), ("__BORDER__", "border"), ("__MUTED__", "muted"), ("__HEADING__", "heading"), ("__INPUT__", "input")]:
-    brand_css = brand_css.replace(token, theme[key])
-st.markdown(brand_css, unsafe_allow_html=True)
+for token,key in [("__MODE__","mode"),("__PAGE__","page"),("__TEXT__","text"),("__CARD__","card"),("__BORDER__","border"),("__MUTED__","muted"),("__HEADING__","heading"),("__INPUT__","input")]:
+    brand_css=brand_css.replace(token,theme[key])
+st.markdown(brand_css,unsafe_allow_html=True)
 
-
-can_edit = role == "owner"
-
-navigation = st.navigation(
-    {
-        "PAINEL": [st.Page("app_pages/dashboard.py", title="Visão financeira", icon="📈", default=True)],
-        "LANÇAMENTOS": [
-            st.Page("app_pages/dfc.py", title="Lançamento", icon="💰"),
-            st.Page("app_pages/products.py", title="Produtos", icon="📦"),
-        ],
-        "ANÁLISES": [st.Page("app_pages/analysis.py", title="Gráficos financeiros", icon="📊")],
-        **({
-            "DADOS": [
-                st.Page("app_pages/import_excel.py", title="Importar planilha", icon="📥"),
-                st.Page("app_pages/reset_data.py", title="Reiniciar dados", icon="🧹"),
-            ]
-        } if can_edit else {}),
-    },
-    position="sidebar",
-)
-navigation.run()
-
-st.sidebar.divider()
 st.sidebar.markdown("## 📊 Taqi Motos")
 st.sidebar.caption("Painel financeiro")
 add_session_controls(role)
