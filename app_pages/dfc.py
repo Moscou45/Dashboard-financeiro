@@ -55,7 +55,7 @@ def _expense_section(label: str, expense_type: str, rows: pd.DataFrame, selected
     visible["Descrição"] = visible["Descrição"].fillna("")
     visible = visible[["Data", "Categoria", "Valor", "Descrição"]].sort_values("Data", ascending=False)
     st.dataframe(
-        visible, hide_index=True, width="stretch", theme="dark" if st.session_state.get("app_dark_mode") else "light",
+        visible, hide_index=True, width="stretch",
         column_config={
             "Data": st.column_config.DateColumn(format="DD/MM/YYYY"),
             "Valor": st.column_config.NumberColumn(format="R$ %.2f"),
@@ -112,10 +112,6 @@ def render():
     filtered_expenses = expense_rows[expense_rows["date"].dt.month.isin(selected_months)] if not expense_rows.empty else expense_rows
     in_total = float(filtered_daily["Entradas"].sum()) if not filtered_daily.empty else 0.0
     out_total = float(filtered_expenses["amount"].sum()) if not filtered_expenses.empty else 0.0
-    metrics = st.columns(3)
-    metrics[0].metric("Entradas no período", brl(in_total))
-    metrics[1].metric("Saídas no período", brl(out_total))
-    metrics[2].metric("Saldo líquido do período", brl(in_total - out_total))
 
     receipts = filtered_daily[["Data", *PAYMENT_ORDER, "Entradas"]].copy()
     receipts = receipts[receipts["Entradas"] != 0]
@@ -140,7 +136,7 @@ def render():
                 st.rerun()
 
         st.dataframe(
-            receipts, hide_index=True, width="stretch", theme="dark" if st.session_state.get("app_dark_mode") else "light",
+            receipts, hide_index=True, width="stretch",
             column_config={"Data": st.column_config.DateColumn(format="DD/MM/YYYY"), **_money_columns(receipts)},
         )
         if receipts.empty:
@@ -154,7 +150,7 @@ def render():
                 visible = visible.rename(columns={"date": "Data", "category": "Categoria", "amount": "Valor", "description": "Descrição"})
                 visible["Descrição"] = visible["Descrição"].fillna("")
                 visible = visible[["Data", "Categoria", "Valor", "Descrição"]].sort_values("Data", ascending=False)
-                st.dataframe(visible, hide_index=True, width="stretch", theme="dark" if st.session_state.get("app_dark_mode") else "light", column_config={
+                st.dataframe(visible, hide_index=True, width="stretch", column_config={
                     "Data": st.column_config.DateColumn(format="DD/MM/YYYY"),
                     "Valor": st.column_config.NumberColumn(format="R$ %.2f"),
                 })
@@ -178,7 +174,7 @@ def render():
     if not selected_daily.empty:
         with st.expander("Resumo diário de entradas, saídas e saldo"):
             visible = selected_daily.drop(columns=["month"])
-            st.dataframe(visible, hide_index=True, width="stretch", theme="dark" if st.session_state.get("app_dark_mode") else "light", column_config={
+            st.dataframe(visible, hide_index=True, width="stretch", column_config={
                 "Data": st.column_config.DateColumn(format="DD/MM/YYYY"),
                 **_money_columns(visible),
             })
