@@ -272,7 +272,7 @@ def render():
             "Tipo", "Descrição", "Valor", "% do faturamento", "% das despesas",
         ])
         st.dataframe(
-            annual_table, hide_index=True, width="stretch",
+            annual_table, hide_index=True, width="stretch", theme="dark" if st.session_state.get("app_dark_mode") else "light",
             column_order=["Tipo", "Descrição", "Valor", "% do faturamento", "% das despesas"],
             column_config={
                 "Tipo": st.column_config.TextColumn("Tipo", width="small"),
