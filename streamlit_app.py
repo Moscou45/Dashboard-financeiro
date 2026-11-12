@@ -97,6 +97,34 @@ p,label,[data-testid="stCaptionContainer"],[data-testid="stMarkdownContainer"]{c
 [data-testid="stForm"] [data-baseweb="select"] svg,
 [data-testid="stForm"] [data-testid="stDateInput"] svg{fill:__MUTED__!important;color:__MUTED__!important;}
 input::placeholder,textarea::placeholder{color:__MUTED__!important;opacity:1;}
+
+/* Keep date and numeric controls aligned with the active app theme. */
+[data-testid="stDateInput"] [data-baseweb="input"],
+[data-testid="stDateInput"] [data-baseweb="input"]>div,
+[data-testid="stDateInput"] input,
+[data-testid="stNumberInput"] [data-baseweb="input"],
+[data-testid="stNumberInput"] [data-baseweb="input"]>div,
+[data-testid="stNumberInput"] input{
+  background-color:__INPUT__!important;color:__TEXT__!important;
+  -webkit-text-fill-color:__TEXT__!important;border-color:__BORDER__!important;
+}
+[data-testid="stNumberInput"] button{
+  background-color:__INPUT__!important;color:__TEXT__!important;
+  border-color:__BORDER__!important;
+}
+[data-testid="stDateInput"] svg,[data-testid="stNumberInput"] svg{
+  fill:__MUTED__!important;color:__MUTED__!important;
+}
+/* Tab overflow controls use the same surface as the tabs. */
+[data-testid="stTabs"] button[aria-label="Scroll tabs right"],
+[data-testid="stTabs"] button[aria-label="Scroll tabs left"]{
+  background:__CARD__!important;color:__TEXT__!important;
+  border:0!important;box-shadow:none!important;
+}
+[data-testid="stTabs"] button[aria-label^="Scroll tabs"] svg{
+  fill:__TEXT__!important;color:__TEXT__!important;
+}
+
 /* Dropdown menus are rendered in a portal, so style them independently of the widget. */
 [data-baseweb="popover"],[data-baseweb="popover"]>div,[data-baseweb="menu"],[role="listbox"]{
   background-color:__CARD__!important;color:__TEXT__!important;
