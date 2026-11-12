@@ -31,6 +31,14 @@ def _themed_frame(frame: pd.DataFrame):
             f"border-color: {border_color};"
         )
     )
+    styled = styled.apply_index(
+        lambda headers: [
+            f"background-color: {header_bg}; color: {text_color}; "
+            f"border-color: {border_color};"
+            for _ in headers
+        ],
+        axis=1,
+    )
     return styled.set_table_styles([
         {
             "selector": "th",
