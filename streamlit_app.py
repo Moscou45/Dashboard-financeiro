@@ -118,7 +118,8 @@ input::placeholder,textarea::placeholder{color:__MUTED__!important;opacity:1;}
 /* Strong, page-wide selectors for Streamlit's nested date and number widgets. */
 [data-testid="stForm"] [data-testid="stDateInput"] div,
 [data-testid="stForm"] [data-testid="stNumberInput"] div{
-  background-color:__INPUT__!important;
+  background-color:__INPUT__!important;color:__TEXT__!important;
+  -webkit-text-fill-color:__TEXT__!important;
 }
 [data-testid="stForm"] [data-testid="stDateInput"] input,
 [data-testid="stForm"] [data-testid="stNumberInput"] input{
