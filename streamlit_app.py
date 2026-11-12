@@ -115,6 +115,32 @@ input::placeholder,textarea::placeholder{color:__MUTED__!important;opacity:1;}
 [data-testid="stDateInput"] svg,[data-testid="stNumberInput"] svg{
   fill:__MUTED__!important;color:__MUTED__!important;
 }
+/* Strong, page-wide selectors for Streamlit's nested date and number widgets. */
+[data-testid="stForm"] [data-testid="stDateInput"] div,
+[data-testid="stForm"] [data-testid="stNumberInput"] div{
+  background-color:__INPUT__!important;
+}
+[data-testid="stForm"] [data-testid="stDateInput"] input,
+[data-testid="stForm"] [data-testid="stNumberInput"] input{
+  background-color:__INPUT__!important;color:__TEXT__!important;
+  -webkit-text-fill-color:__TEXT__!important;caret-color:__TEXT__!important;
+  border-color:__BORDER__!important;
+}
+[data-testid="stForm"] [data-testid="stDateInput"] [data-baseweb="input"],
+[data-testid="stForm"] [data-testid="stDateInput"] [data-baseweb="input"]>div,
+[data-testid="stForm"] [data-testid="stNumberInput"] [data-baseweb="input"],
+[data-testid="stForm"] [data-testid="stNumberInput"] [data-baseweb="input"]>div{
+  background:__INPUT__!important;border-color:__BORDER__!important;
+  box-shadow:none!important;
+}
+[data-testid="stForm"] [data-testid="stNumberInput"] button{
+  background:__INPUT__!important;color:__TEXT__!important;
+  -webkit-text-fill-color:__TEXT__!important;border-color:__BORDER__!important;
+}
+[data-testid="stForm"] [data-testid="stDateInput"] svg,
+[data-testid="stForm"] [data-testid="stNumberInput"] svg{
+  fill:__MUTED__!important;color:__MUTED__!important;
+}
 /* Tab overflow controls use the same surface as the tabs. */
 [data-testid="stTabs"] button[aria-label="Scroll tabs right"],
 [data-testid="stTabs"] button[aria-label="Scroll tabs left"]{
