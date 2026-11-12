@@ -16,6 +16,40 @@ VARIABLE_CATEGORIES = [
 ]
 
 
+
+def _themed_frame(frame: pd.DataFrame):
+    """Apply app-specific colors to Glide Data Grid when custom dark mode is active."""
+    if not st.session_state.get("app_dark_mode", False):
+        return frame
+    body_bg = "#121d30"
+    header_bg = "#1b2940"
+    text_color = "#e5eaf2"
+    border_color = "#29384f"
+    styled = frame.style.map(
+        lambda _: (
+            f"background-color: {body_bg}; color: {text_color}; "
+            f"border-color: {border_color};"
+        )
+    )
+    return styled.set_table_styles([
+        {
+            "selector": "th",
+            "props": [
+                ("background-color", header_bg),
+                ("color", text_color),
+                ("border-color", border_color),
+            ],
+        },
+        {
+            "selector": "td",
+            "props": [
+                ("background-color", body_bg),
+                ("color", text_color),
+                ("border-color", border_color),
+            ],
+        },
+    ])
+
 def _money_columns(frame: pd.DataFrame) -> dict:
     return {
         column: st.column_config.NumberColumn(format="R$ %.2f")
@@ -55,7 +89,7 @@ def _expense_section(label: str, expense_type: str, rows: pd.DataFrame, selected
     visible["Descrição"] = visible["Descrição"].fillna("")
     visible = visible[["Data", "Categoria", "Valor", "Descrição"]].sort_values("Data", ascending=False)
     st.dataframe(
-        visible, hide_index=True, width="stretch",
+        _themed_frame(visible), hide_index=True, width="stretch",
         column_config={
             "Data": st.column_config.DateColumn(format="DD/MM/YYYY"),
             "Valor": st.column_config.NumberColumn(format="R$ %.2f"),
@@ -135,7 +169,7 @@ def render():
                 st.rerun()
 
         st.dataframe(
-            receipts, hide_index=True, width="stretch",
+            _themed_frame(receipts), hide_index=True, width="stretch",
             column_config={"Data": st.column_config.DateColumn(format="DD/MM/YYYY"), **_money_columns(receipts)},
         )
         if receipts.empty:
@@ -149,7 +183,7 @@ def render():
                 visible = visible.rename(columns={"date": "Data", "category": "Categoria", "amount": "Valor", "description": "Descrição"})
                 visible["Descrição"] = visible["Descrição"].fillna("")
                 visible = visible[["Data", "Categoria", "Valor", "Descrição"]].sort_values("Data", ascending=False)
-                st.dataframe(visible, hide_index=True, width="stretch", column_config={
+                st.dataframe(_themed_frame(visible), hide_index=True, width="stretch", column_config={
                     "Data": st.column_config.DateColumn(format="DD/MM/YYYY"),
                     "Valor": st.column_config.NumberColumn(format="R$ %.2f"),
                 })
@@ -173,7 +207,7 @@ def render():
     if not selected_daily.empty:
         with st.expander("Resumo diário de entradas, saídas e saldo"):
             visible = selected_daily.drop(columns=["month"])
-            st.dataframe(visible, hide_index=True, width="stretch", column_config={
+            st.dataframe(_themed_frame(visible), hide_index=True, width="stretch", column_config={
                 "Data": st.column_config.DateColumn(format="DD/MM/YYYY"),
                 **_money_columns(visible),
             })
