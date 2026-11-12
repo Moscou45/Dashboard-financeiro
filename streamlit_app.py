@@ -55,6 +55,13 @@ brand_css = """
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500&family=Poppins:wght@700&display=swap');
 :root{color-scheme:__MODE__;}
 .stApp,.stApp *{font-family:'Inter',sans-serif!important;font-weight:400;}
+/* Preserve Streamlit's ligature font for Material Symbols. */
+[data-testid="stIconMaterial"],[data-testid="stIconMaterial"] *{
+  font-family:"Material Symbols Rounded"!important;
+  font-weight:normal!important;font-style:normal!important;
+  font-feature-settings:"liga";-webkit-font-feature-settings:"liga";
+  -webkit-font-smoothing:antialiased;
+}
 h1,h2,h3,[data-testid="stMetricLabel"],[data-testid="stMetricValue"],[data-testid="stSubheader"]{font-family:'Poppins',sans-serif!important;font-weight:700!important;letter-spacing:-.02em;}
 [data-testid="stTabs"] button,[data-testid="stSidebarNav"] a{font-family:'Inter',sans-serif!important;font-weight:500!important;}
 .block-container{max-width:1600px;padding-top:2rem;padding-bottom:3rem;}
@@ -90,7 +97,28 @@ p,label,[data-testid="stCaptionContainer"],[data-testid="stMarkdownContainer"]{c
 [data-testid="stForm"] [data-baseweb="select"] svg,
 [data-testid="stForm"] [data-testid="stDateInput"] svg{fill:__MUTED__!important;color:__MUTED__!important;}
 input::placeholder,textarea::placeholder{color:__MUTED__!important;opacity:1;}
-[data-baseweb="popover"] *,[role="listbox"],[role="option"]{color:__TEXT__;}
+/* Dropdown menus are rendered in a portal, so style them independently of the widget. */
+[data-baseweb="popover"],[data-baseweb="popover"]>div,[data-baseweb="menu"],[role="listbox"]{
+  background-color:__CARD__!important;color:__TEXT__!important;
+  border:1px solid __BORDER__!important;border-radius:10px;
+  box-shadow:0 12px 32px rgba(0,0,0,.22);
+}
+[data-baseweb="popover"] [role="option"],[role="listbox"] [role="option"]{
+  background-color:__CARD__!important;color:__TEXT__!important;
+  -webkit-text-fill-color:__TEXT__!important;
+}
+[data-baseweb="popover"] [role="option"]:hover,
+[data-baseweb="popover"] [role="option"][aria-selected="true"],
+[role="listbox"] [role="option"]:hover,
+[role="listbox"] [role="option"][aria-selected="true"]{
+  background-color:__INPUT__!important;color:__HEADING__!important;
+  -webkit-text-fill-color:__HEADING__!important;
+}
+[data-baseweb="popover"] [data-highlighted="true"]{
+  background-color:__INPUT__!important;color:__HEADING__!important;
+}
+[data-baseweb="popover"] [data-baseweb="menu"] *{color:__TEXT__!important;}
+
 [data-testid="stForm"],[data-testid="stVerticalBlockBorderWrapper"]{border-color:__BORDER__!important;border-radius:16px;}
 [data-testid="stForm"]{background:__CARD__;padding:1rem 1.15rem;transition:background-color .22s ease,border-color .22s ease;}
 [data-testid="stDataFrame"],[data-testid="stTable"]{background:__CARD__;border:1px solid __BORDER__;border-radius:12px;overflow:hidden;transition:background-color .22s ease,border-color .22s ease;}
