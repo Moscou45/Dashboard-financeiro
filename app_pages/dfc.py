@@ -17,46 +17,34 @@ VARIABLE_CATEGORIES = [
 
 
 
-def _themed_frame(frame: pd.DataFrame):
-    """Apply app-specific colors to Glide Data Grid when custom dark mode is active."""
-    if not st.session_state.get("app_dark_mode", False):
-        return frame
-    body_bg = "#121d30"
-    header_bg = "#1b2940"
-    text_color = "#e5eaf2"
-    border_color = "#29384f"
-    styled = frame.style.map(
-        lambda _: (
-            f"background-color: {body_bg}; color: {text_color}; "
-            f"border-color: {border_color};"
-        )
+def _render_frame(frame: pd.DataFrame, money_columns: list[str] | None = None):
+    """Render a compact, theme-aware table with a real HTML header."""
+    if frame.empty:
+        st.dataframe(frame, hide_index=True, width="stretch")
+        return
+    shown = frame.copy()
+    money_columns = money_columns or [column for column in shown.columns if column != "Data"]
+    formatters = {}
+    for column in shown.columns:
+        if column == "Data":
+            shown[column] = pd.to_datetime(shown[column], errors="coerce").dt.strftime("%d/%m/%Y")
+            shown[column] = shown[column].fillna("")
+        elif column in money_columns:
+            formatters[column] = lambda value: brl(float(value)) if pd.notna(value) else "R$ 0,00"
+    dark = st.session_state.get("app_dark_mode", False)
+    bg = "#121d30" if dark else "#ffffff"
+    head = "#1b2940" if dark else "#f4f7fb"
+    color = "#e5eaf2" if dark else "#263449"
+    border = "#29384f" if dark else "#e5eaf2"
+    html = shown.to_html(index=False, escape=True, border=0, formatters=formatters, classes="dfc-table")
+    st.markdown(
+        f'<div style="overflow-x:auto;border:1px solid {border};border-radius:10px;max-height:520px;overflow-y:auto">'
+        f'<style>.dfc-table{{border-collapse:collapse;width:100%;font-family:Inter,Arial,sans-serif;color:{color};background:{bg}}}'
+        f'.dfc-table th{{position:sticky;top:0;background:{head};color:{color};font-weight:600;text-align:left;z-index:1}}'
+        f'.dfc-table th,.dfc-table td{{padding:10px 12px;border-bottom:1px solid {border};white-space:nowrap}}'
+        f'.dfc-table td:nth-child(n+3){{text-align:right}}.dfc-table tr:hover td{{background:{head}}}</style>{html}</div>',
+        unsafe_allow_html=True,
     )
-    styled = styled.apply_index(
-        lambda headers: [
-            f"background-color: {header_bg}; color: {text_color}; "
-            f"border-color: {border_color};"
-            for _ in headers
-        ],
-        axis=1,
-    )
-    return styled.set_table_styles([
-        {
-            "selector": "th",
-            "props": [
-                ("background-color", header_bg),
-                ("color", text_color),
-                ("border-color", border_color),
-            ],
-        },
-        {
-            "selector": "td",
-            "props": [
-                ("background-color", body_bg),
-                ("color", text_color),
-                ("border-color", border_color),
-            ],
-        },
-    ])
 
 def _money_columns(frame: pd.DataFrame) -> dict:
     return {
@@ -96,13 +84,7 @@ def _expense_section(label: str, expense_type: str, rows: pd.DataFrame, selected
     })
     visible["Descrição"] = visible["Descrição"].fillna("")
     visible = visible[["Data", "Categoria", "Valor", "Descrição"]].sort_values("Data", ascending=False)
-    st.dataframe(
-        _themed_frame(visible), hide_index=True, width="stretch",
-        column_config={
-            "Data": st.column_config.DateColumn(format="DD/MM/YYYY"),
-            "Valor": st.column_config.NumberColumn(format="R$ %.2f"),
-        },
-    )
+    _render_frame(visible, ["Valor"])
     export_csv(visible, f"Exportar {label} CSV", f"dfc_{expense_type.casefold()}.csv")
 
 
@@ -176,10 +158,7 @@ def render():
                 st.success("Receita salva no Lançamento.")
                 st.rerun()
 
-        st.dataframe(
-            _themed_frame(receipts), hide_index=True, width="stretch",
-            column_config={"Data": st.column_config.DateColumn(format="DD/MM/YYYY"), **_money_columns(receipts)},
-        )
+        _render_frame(receipts, PAYMENT_ORDER + ["Entradas"])
         if receipts.empty:
             st.caption("Nenhuma receita no período selecionado. Use o formulário acima para lançar uma receita.")
         export_csv(receipts, "Exportar receitas CSV", f"dfc_receitas_{year}.csv")
@@ -191,10 +170,7 @@ def render():
                 visible = visible.rename(columns={"date": "Data", "category": "Categoria", "amount": "Valor", "description": "Descrição"})
                 visible["Descrição"] = visible["Descrição"].fillna("")
                 visible = visible[["Data", "Categoria", "Valor", "Descrição"]].sort_values("Data", ascending=False)
-                st.dataframe(_themed_frame(visible), hide_index=True, width="stretch", column_config={
-                    "Data": st.column_config.DateColumn(format="DD/MM/YYYY"),
-                    "Valor": st.column_config.NumberColumn(format="R$ %.2f"),
-                })
+                _render_frame(visible, ["Valor"])
             else:
                 st.caption("Nenhuma despesa sem classificação neste período.")
 
@@ -215,10 +191,7 @@ def render():
     if not selected_daily.empty:
         with st.expander("Resumo diário de entradas, saídas e saldo"):
             visible = selected_daily.drop(columns=["month"])
-            st.dataframe(_themed_frame(visible), hide_index=True, width="stretch", column_config={
-                "Data": st.column_config.DateColumn(format="DD/MM/YYYY"),
-                **_money_columns(visible),
-            })
+            _render_frame(visible, [column for column in visible.columns if column != "Data"])
             export_csv(visible, "Exportar resumo diário CSV", f"dfc_resumo_diario_{year}.csv")
 
 
