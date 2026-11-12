@@ -133,6 +133,18 @@ input::placeholder,textarea::placeholder{color:__MUTED__!important;opacity:1;}
   background:__INPUT__!important;border-color:__BORDER__!important;
   box-shadow:none!important;
 }
+/* Chromium renders native date values through WebKit pseudo-elements. */
+[data-testid="stForm"] [data-testid="stDateInput"] input[type="date"]{
+  color-scheme:__MODE__!important;
+}
+[data-testid="stForm"] [data-testid="stDateInput"] input[type="date"]::-webkit-datetime-edit,
+[data-testid="stForm"] [data-testid="stDateInput"] input[type="date"]::-webkit-datetime-edit-fields-wrapper,
+[data-testid="stForm"] [data-testid="stDateInput"] input[type="date"]::-webkit-datetime-edit-text,
+[data-testid="stForm"] [data-testid="stDateInput"] input[type="date"]::-webkit-datetime-edit-year-field,
+[data-testid="stForm"] [data-testid="stDateInput"] input[type="date"]::-webkit-datetime-edit-month-field,
+[data-testid="stForm"] [data-testid="stDateInput"] input[type="date"]::-webkit-datetime-edit-day-field{
+  color:__TEXT__!important;-webkit-text-fill-color:__TEXT__!important;
+}
 [data-testid="stForm"] [data-testid="stNumberInput"] button{
   background:__INPUT__!important;color:__TEXT__!important;
   -webkit-text-fill-color:__TEXT__!important;border-color:__BORDER__!important;
