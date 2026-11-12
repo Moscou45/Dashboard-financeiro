@@ -191,6 +191,19 @@ input::placeholder,textarea::placeholder{color:__MUTED__!important;opacity:1;}
 [data-testid="stDataFrame"],[data-testid="stTable"]{background:__CARD__;border:1px solid __BORDER__;border-radius:12px;overflow:hidden;transition:background-color .22s ease,border-color .22s ease;}
 [data-testid="stPlotlyChart"]{background:__CARD__;border:1px solid __BORDER__;border-radius:16px;padding:8px 8px 2px;}
 [data-testid="stButton"] button,[data-testid="stDownloadButton"] button,[data-testid="stFormSubmitButton"] button{border-radius:10px;transition:all .16s ease;}
+
+[data-testid="stDownloadButton"] button{
+  background-color:__CARD__!important;color:__TEXT__!important;
+  -webkit-text-fill-color:__TEXT__!important;border:1px solid __BORDER__!important;
+}
+[data-testid="stDownloadButton"] button *{
+  color:__TEXT__!important;-webkit-text-fill-color:__TEXT__!important;
+}
+[data-testid="stDownloadButton"] button:hover{
+  background-color:__INPUT__!important;color:__HEADING__!important;
+  -webkit-text-fill-color:__HEADING__!important;border-color:__BORDER__!important;
+}
+
 [data-testid="stFormSubmitButton"] button[kind="primary"]{background:#0f9f91;border-color:#0f9f91;color:#fff;font-weight:650;}
 .st-key-theme_toggle button{border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.08);color:white;}
 @media(max-width:700px){.block-container{padding:1rem .8rem 2rem;}h1{font-size:1.65rem!important;}}
